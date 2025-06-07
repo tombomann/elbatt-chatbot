@@ -4,15 +4,10 @@ from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
 
-# Gjør public/ tilgjengelig som statiske filer
-app.mount("/public", StaticFiles(directory="public"), name="public")
+# Gjør hele public/ tilgjengelig
+app.mount("/", StaticFiles(directory="public", html=True), name="static")
 
-# Eksplisitt route for /embed.js
+# Eksplisitt rute for chatbot-scriptet
 @app.get("/embed.js")
 async def get_embed():
     return FileResponse("public/embed.js", media_type="application/javascript")
-
-# En enkel test på / så du vet at serveren kjører
-@app.get("/")
-def read_root():
-    return {"status": "OK", "message": "Elbatt chatbot API works!"}
