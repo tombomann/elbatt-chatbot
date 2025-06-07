@@ -1,6 +1,7 @@
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
+import Chatbot from "https://cdn.jsdelivr.net/npm/flowise-embed/dist/web.js"
 
-app = FastAPI()
-
-app.mount("/", StaticFiles(directory="public", html=True), name="static")
+Chatbot.init({
+  chatflowid: "7ef90146-02e6-4708-b1ef-dc6c460fcb91",
+  apiHost: "https://elbatt-chatbot.onrender.com",
+  ...
+})
