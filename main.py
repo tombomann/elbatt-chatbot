@@ -10,6 +10,5 @@ async def status():
 @app.post("/lead")
 async def motta_lead(request: Request):
     data = await request.json()
-    # Her kan du lagre til Excel, sende e-post, osv.
-    # Foreløpig bare ekko tilbake
+    # Her kan du utvide med Excel-logging, e-post osv.
     return JSONResponse({"received": data, "message": "Lead mottatt!"})
