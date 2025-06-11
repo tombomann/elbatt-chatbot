@@ -1,14 +1,13 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
 
-@app.get("/")
-async def status():
-    return {"status": "Elbatt API kjører"}
+# Gjør hele public/ tilgjengelig
+app.mount("/", StaticFiles(directory="public", html=True), name="static")
 
-@app.post("/lead")
-async def motta_lead(request: Request):
-    data = await request.json()
-    # Her kan du utvide med Excel-logging, e-post osv.
-    return JSONResponse({"received": data, "message": "Lead mottatt!"})
+# Eksplisitt rute for chatbot-scriptet
+@app.get("/embed.js")
+async def get_embed():
+    return FileResponse("public/embed.js", media_type="application/javascript")

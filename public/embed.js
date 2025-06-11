@@ -1,5 +1,11 @@
-import Chatbot from "https://cdn.jsdelivr.net/npm/flowise-embed/dist/web.js";
+import Chatbot from "https://cdn.jsdelivr.net/npm/flowise-embed/dist/web.js"
+
 Chatbot.init({
-  chatflowid: "a1b2c3d4-xxxx-yyyy-zzzz-0123456789ab",
-  apiHost: "https://elbatt-chatbot.onrender.com"
-});
+  chatflowid: "7ef90146-02e6-4708-b1ef-dc6c460fcb91",
+  apiHost: "https://elbatt-chatbot.onrender.com",
+  chatflowConfig: {
+    headers: {
+      "Authorization": "Bearer J0hCDNQSe3_lPbCHCj8TAClINVtYU1w9Ifs7ZvMCZvw"
+    }
+  }
+})
