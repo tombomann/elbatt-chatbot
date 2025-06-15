@@ -1,2 +1,45 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8" />
+  <title>Elbatt Chatbot</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      margin-top: 100px;
+    }
+    #start-chat-btn {
+      background-color: #1e73be;
+      border: none;
+      color: white;
+      padding: 15px 30px;
+      font-size: 1.2rem;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Velkommen til Elbatt Chatbot</h1>
+  <button id="start-chat-btn">💬 Start Chat</button>
 
+  <script type="module">
+    import Chatbot from "https://cdn.jsdelivr.net/npm/flowise-embed/dist/web.js";
 
+    Chatbot.init({
+      chatflowid: "7ef90146-02e6-4708-b1ef-dc6c460fcb91",
+      apiHost: "https://elbatt-chatbot.onrender.com",
+      chatflowConfig: {
+        headers: {
+          "Authorization": "Bearer J0hCDNQSe3_lPbCHCj8TAClINVtYU1w9Ifs7ZvMCZvw"
+        }
+      }
+    });
+
+    document.getElementById("start-chat-btn").addEventListener("click", () => {
+      Chatbot.open();
+    });
+  </script>
+</body>
+</html>
