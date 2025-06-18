@@ -1,0 +1,30 @@
+name: Deploy Caddy Config
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Sjekk ut repo
+        uses: actions/checkout@v3
+
+      - name: Kjør deploy-script på server via SSH
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "Formaterer Caddyfile..."
+            sudo /usr/bin/caddy fmt --overwrite /etc/caddy/Caddyfile
+
+            echo "Restart Caddy-tjeneste..."
+            sudo systemctl restart caddy
+
+            echo "Sjekker status for Caddy..."
+            sudo systemctl status caddy --no-pager
