@@ -1,0 +1,38 @@
+name: Auto Push and Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+env:
+  PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+  REPO: tombomann/elbatt-chatbot
+  FRONTEND_DIR: frontend
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Configure Git user
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+
+      - name: Commit and push changes
+        run: |
+          git add .
+          git diff --cached --quiet || git commit -m "Automatisk oppdatering frontend"
+          git push https://x-access-token:${PAT_TOKEN}@github.com/${REPO}.git main
+
+      - name: Deploy to Netlify
+        uses: netlify/actions/cli@v2
+        with:
+          args: deploy --dir=${{ env.FRONTEND_DIR }} --prod
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
