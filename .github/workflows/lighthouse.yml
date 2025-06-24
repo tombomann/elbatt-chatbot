@@ -1,0 +1,32 @@
+mkdir -p .github/workflows
+
+cat > .github/workflows/lighthouse.yml << 'EOF'
+name: Lighthouse Audit
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install Lighthouse
+        run: npm install -g lighthouse
+
+      - name: Run Lighthouse audit
+        run: lighthouse https://elbatt-chat-test.netlify.app --output html --output-path ./lighthouse-report.html --chrome-flags="--headless"
+
+      - name: Upload Lighthouse report
+        uses: actions/upload-artifact@v3
+        with:
+          name: lighthouse-report
+          path: lighthouse-report.html
+EOF
