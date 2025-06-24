@@ -30,7 +30,7 @@ jobs:
           git push https://x-access-token:${PAT_TOKEN}@github.com/${REPO}.git main
 
       - name: Deploy to Netlify
-        uses: netlify/actions/cli@v3
+        uses: netlify/actions/cli@v1
         with:
           args: deploy --dir=${{ env.FRONTEND_DIR }} --prod
         env:
