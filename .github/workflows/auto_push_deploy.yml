@@ -1,3 +1,16 @@
+name: Deploy Frontend with Lighthouse Check
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+  REPO: tombomann/elbatt-chatbot
+  FRONTEND_DIR: frontend
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
