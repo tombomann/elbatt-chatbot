@@ -1,6 +1,3 @@
-mkdir -p .github/workflows
-
-cat > .github/workflows/lighthouse.yml << 'EOF'
 name: Lighthouse Audit
 
 on:
@@ -29,4 +26,3 @@ jobs:
         with:
           name: lighthouse-report
           path: lighthouse-report.html
-EOF
