@@ -1,4 +1,4 @@
-name: Deploy Frontend with Lighthouse Check
+name: Netlify Deploy
 
 on:
   push:
@@ -12,28 +12,27 @@ env:
   FRONTEND_DIR: frontend
 
 jobs:
-  deploy:
+  build_and_deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      - name: Configure Git user
-        run: |
-          git config user.name "GitHub Actions Bot"
-          git config user.email "actions@github.com"
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
 
-      - name: Commit and push changes
+      - name: Install dependencies and build
         run: |
-          git add .
-          git diff --cached --quiet || git commit -m "Automatisk oppdatering frontend"
-          git push https://x-access-token:${PAT_TOKEN}@github.com/${REPO}.git main
+          cd ${{ env.FRONTEND_DIR }}
+          npm ci
+          npm run build
 
       - name: Deploy to Netlify
         uses: netlify/actions/cli@v2
         with:
-          args: deploy --dir=${{ env.FRONTEND_DIR }} --prod
+          args: deploy --dir=${{ env.FRONTEND_DIR }}/build --prod
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
