@@ -2,27 +2,31 @@ name: Lighthouse Audit
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
   lighthouse:
     runs-on: ubuntu-latest
-
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: '18'
 
-      - name: Install Lighthouse
-        run: npm install -g lighthouse
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Run Lighthouse audit
-        run: lighthouse https://elbatt-chat-test.netlify.app --output html --output-path ./lighthouse-report.html --chrome-flags="--headless"
+      - name: Run Lighthouse Audit
+        run: |
+          npx lighthouse https://your-site-url.com --output json --output html --output-path=./lighthouse-report.html
 
       - name: Upload Lighthouse report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: lighthouse-report
           path: lighthouse-report.html
