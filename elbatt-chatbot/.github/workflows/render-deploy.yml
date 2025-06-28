@@ -1,0 +1,14 @@
+name: Auto Deploy to Render
+
+on:
+  push:
+    branches:
+      - main   # Endre hvis du bruker annen branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Render Deploy API
+        run: |
+          curl -X POST "https://api.render.com/deploy/srv-d0eipgh5pdvs73aoasu0?key=4CqddhDgl4E"

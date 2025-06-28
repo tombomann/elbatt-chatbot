@@ -1,0 +1,67 @@
+<<<<<<< HEAD
+name: Deploy Caddy Config
+=======
+name: Deploy Elbatt Chatbot
+>>>>>>> 245e174 (Legg til deploy workflow og backup/restore scripts)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+<<<<<<< HEAD
+      - name: Sjekk ut repo
+        uses: actions/checkout@v3
+
+      - name: Kjør deploy-script på server via SSH
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "Formaterer Caddyfile..."
+            sudo /usr/bin/caddy fmt --overwrite /etc/caddy/Caddyfile
+
+            echo "Restart Caddy-tjeneste..."
+            sudo systemctl restart caddy
+
+            echo "Sjekker status for Caddy..."
+            sudo systemctl status caddy --no-pager
+=======
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.8.1
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install boto3 requests
+
+      - name: Deploy to Scaleway server
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME }}
+          LANGFLOW_BEARER: ${{ secrets.LANGFLOW_BEARER }}
+          LANGFLOW_API_URL: ${{ secrets.LANGFLOW_API_URL }}
+        run: |
+          ssh -o StrictHostKeyChecking=no elbatt << EOF
+            export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+            export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+            export AWS_BUCKET_NAME=$AWS_BUCKET_NAME
+            export LANGFLOW_BEARER=$LANGFLOW_BEARER
+            export LANGFLOW_API_URL=$LANGFLOW_API_URL
+            cd /root/elbatt-chatbot
+            ./deploy.sh
+          EOF
+>>>>>>> 245e174 (Legg til deploy workflow og backup/restore scripts)

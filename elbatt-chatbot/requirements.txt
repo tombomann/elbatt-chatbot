@@ -1,0 +1,4 @@
+fastapi
+uvicorn
+aiofiles  # Trengs for å serve statiske filer med FastAPI
+python-multipart  # Brukes i noen Flowise-oppsett med filhåndtering
