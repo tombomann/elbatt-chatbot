@@ -1,38 +1,40 @@
-name: Netlify Deploy
+name: Deploy to Netlify
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
-
-env:
-  PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-  REPO: tombomann/elbatt-chatbot
-  FRONTEND_DIR: frontend
 
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Setup Node.js
+      # Cache npm dependencies for raskere bygg
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: 18
 
-      - name: Install dependencies and build
-        run: |
-          cd ${{ env.FRONTEND_DIR }}
-          npm ci
-          npm run build
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
 
       - name: Deploy to Netlify
         uses: netlify/actions/cli@v2
         with:
-          args: deploy --dir=${{ env.FRONTEND_DIR }}/build --prod
+          args: deploy --dir=build --prod
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
