@@ -11,30 +11,33 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      # Cache npm dependencies for raskere bygg
       - name: Cache node modules
         uses: actions/cache@v4
         with:
-          path: ~/.npm
+          path: |
+            ~/.npm
+            node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
 
-      - name: Install Node.js
-        uses: actions/setup-node@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci --prefer-offline
 
-      - name: Build
+      - name: Build project
         run: npm run build
+        working-directory: frontend
 
       - name: Deploy to Netlify
         uses: netlify/actions/cli@v2
         with:
-          args: deploy --dir=build --prod
+          args: deploy --dir=frontend/build --prod
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
