@@ -2,7 +2,7 @@ name: AI Debug GitHub Actions Failure
 
 on:
   workflow_run:
-    workflows: ["Deploy to Netlify"]   # eller navnet på workflowen som feiler
+    workflows: ["Deploy to Netlify"]   # Endre til navnet på din deploy-workflow
     types:
       - completed
 
@@ -11,8 +11,7 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -22,10 +21,11 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
+      - name: Log workflow run ID
+        run: echo "Workflow run ID: ${{ github.event.workflow_run.id }}"
+
       - name: Run AI debug script
         env:
-          GITHUB_TOKEN: ${{ secrets.PAT }}  # ditt secret navn
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-        run: |
-          curl -o ai_debug.py https://raw.githubusercontent.com/tombomann/elbatt-chatbot/main/scripts/ai_debug.py
-          python3 ai_debug.py
+        run: python3 .github/scripts/ai_debug.py

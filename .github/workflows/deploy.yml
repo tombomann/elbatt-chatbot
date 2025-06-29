@@ -1,38 +1,44 @@
-name: Build and Deploy
+name: Deploy to Netlify
 
 on:
   push:
     branches: [main]
 
-env:
-  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-  VEGVESEN_API_KEY: ${{ secrets.VEGVESEN_API_KEY }}
-  # Andre secrets her
-
 jobs:
-  build-and-deploy:
+  build_and_deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      # Sett opp Docker Buildx for multi-arch om nødvendig
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
-      # Logg inn på Docker Hub eller annen registry (hvis publisering ønskes)
-      # - name: Log in to Docker Hub
-      #   uses: docker/login-action@v2
-      #   with:
-      #     username: ${{ secrets.DOCKER_USERNAME }}
-      #     password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
 
-      # Bygg og start containerne med riktig .env
-      - name: Build and run containers
-        run: |
-          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
-          echo "VEGVESEN_API_KEY=${{ secrets.VEGVESEN_API_KEY }}" >> .env
-          docker-compose up -d --build
+      - name: Install dependencies
+        run: npm ci --prefer-offline
 
-      # Eventuelt: Push til remote server via SSH, scp, rsync osv
-      # Her må du tilpasse basert på deploy-metode (f.eks. Scaleway,Netlify )
+      - name: Build project
+        run: npm run build
+
+      - name: Verify build output
+        run: ls -la build && test -f build/index.html
+
+      - name: Deploy to Netlify
+        uses: netlify/actions/cli@v2
+        with:
+          args: deploy --dir=build --prod --timeout=300
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
