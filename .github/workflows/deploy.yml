@@ -1,51 +1,38 @@
-name: Deploy Elbatt Chatbot
+name: Build and Deploy
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+
+env:
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  VEGVESEN_API_KEY: ${{ secrets.VEGVESEN_API_KEY }}
+  # Andre secrets her
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Setup SSH agent
-        uses: webfactory/ssh-agent@v0.9.1
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      # Sett opp Docker Buildx for multi-arch om nødvendig
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
 
-      - name: Install Python dependencies
+      # Logg inn på Docker Hub eller annen registry (hvis publisering ønskes)
+      # - name: Log in to Docker Hub
+      #   uses: docker/login-action@v2
+      #   with:
+      #     username: ${{ secrets.DOCKER_USERNAME }}
+      #     password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # Bygg og start containerne med riktig .env
+      - name: Build and run containers
         run: |
-          python3 -m pip install --upgrade pip
-          pip install boto3 requests
+          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
+          echo "VEGVESEN_API_KEY=${{ secrets.VEGVESEN_API_KEY }}" >> .env
+          docker-compose up -d --build
 
-      - name: Deploy to Scaleway server
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME }}
-          LANGFLOW_BEARER: ${{ secrets.LANGFLOW_BEARER }}
-          LANGFLOW_API_URL: ${{ secrets.LANGFLOW_API_URL }}
-        run: |
-          ssh -o StrictHostKeyChecking=no elbatt << EOF
-            echo "Formaterer Caddyfile..."
-            sudo /usr/bin/caddy fmt --overwrite /etc/caddy/Caddyfile
-
-            echo "Restart Caddy-tjeneste..."
-            sudo systemctl restart caddy
-
-            echo "Sjekker status for Caddy..."
-            sudo systemctl status caddy --no-pager
-
-            export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-            export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
-            export AWS_BUCKET_NAME=$AWS_BUCKET_NAME
-            export LANGFLOW_BEARER=$LANGFLOW_BEARER
-            export LANGFLOW_API_URL=$LANGFLOW_API_URL
-            cd /root/elbatt-chatbot
-            ./deploy.sh
-          EOF
+      # Eventuelt: Push til remote server via SSH, scp, rsync osv
+      # Her må du tilpasse basert på deploy-metode (f.eks. Scaleway,Netlify )
