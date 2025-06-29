@@ -2,11 +2,10 @@ version: '3.8'
 
 services:
   backend:
-    build: .
+    build: ./backend
     ports:
-      - "8000:8000"           # Eksponer port 8000 ut av container
+      - "8000:8000"
     environment:
-      - API_KEY=${API_KEY}    # Eksempel på API-nøkkel (legg til flere etter behov)
+      - API_KEY=${API_KEY}
       - OTHER_ENV_VAR=${OTHER_ENV_VAR}
     restart: unless-stopped
-    command: uvicorn main:app --host 0.0.0.0 --port 8000
