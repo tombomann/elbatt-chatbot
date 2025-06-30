@@ -57,3 +57,93 @@ jobs:
       - name: Setup SSH key
         uses: webfactory/ssh-agent@v0.8.0
         with:
+          ssh-private-key: ${{ env.SSH_KEY }}
+
+      - name: Deploy to Scaleaway via SSH
+        id: deploy_step
+        run: |
+          set -e
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << EOF
+            cd /root/elbatt-chatbot
+            echo "Oppdaterer miljøvariabel for docker tags"
+            echo "BACKEND_IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}" > .env
+            echo "FRONTEND_IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}" >> .env
+
+            docker-compose pull
+            docker-compose up -d --remove-orphans --build
+          EOF
+
+  rollback:
+    if: failure()
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - name: Setup SSH key
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ env.SSH_KEY }}
+
+      - name: Rollback deploy on failure
+        run: |
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << EOF
+            set -e
+            cd /root/elbatt-chatbot
+            echo "Rollback: Bytter til forrige docker image tag"
+            echo "BACKEND_IMAGE_TAG=previous_tag" > .env
+            echo "FRONTEND_IMAGE_TAG=previous_tag" >> .env
+            docker-compose pull
+            docker-compose up -d --remove-orphans --build
+          EOF
+
+  notify:
+    needs: [deploy, rollback]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Send notification email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: ${{ job.status == 'success' && '[Elbatt] Deploy OK' || '[Elbatt] Deploy FAILED' }}
+          to: ${{ env.NOTIFY_EMAIL }}
+          from: Elbatt Chatbot <${{ secrets.SMTP_USERNAME }}>
+          body: |
+            Deploy status: ${{ job.status }}
+            Commit: ${{ github.sha }}
+            Ref: ${{ github.ref }}
+            Workflow: ${{ github.workflow }}
+
+  scan-scaleaway:
+    needs: [deploy, rollback, notify]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Scan files and disk usage on Scaleaway
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ env.SSH_KEY }}
+          script: |
+            cd /root/elbatt-chatbot
+            find . -type f > file-list.txt
+            du -h --max-depth=3 > disk-usage.txt
+
+      - name: Download file list and disk usage from Scaleaway
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ env.SSH_KEY }}
+          source: "/root/elbatt-chatbot/file-list.txt,/root/elbatt-chatbot/disk-usage.txt"
+          target: "."
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: scaleaway-scan
+          path: |
+            file-list.txt
+            disk-usage.txt
