@@ -1,0 +1,13 @@
+name: Test SSH Connectivity
+
+on:
+  workflow_dispatch:  # Manuell trigger
+
+jobs:
+  test-ssh-connection:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check SSH port 22 connectivity
+        run: |
+          echo "Tester tilkobling til ${{ secrets.SSH_HOST }} port 22"
+          nc -zv ${{ secrets.SSH_HOST }} 22
