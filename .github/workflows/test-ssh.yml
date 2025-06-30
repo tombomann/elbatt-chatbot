@@ -1,13 +1,19 @@
-name: Test SSH Connectivity
+name: SSH Connection Test
 
 on:
-  workflow_dispatch:  # Manuell trigger
+  workflow_dispatch:   # Manuell trigger via Actions-tab i GitHub
 
 jobs:
-  test-ssh-connection:
+  ssh-test:
     runs-on: ubuntu-latest
     steps:
-      - name: Check SSH port 22 connectivity
-        run: |
-          echo "Tester tilkobling til ${{ secrets.SSH_HOST }} port 22"
-          nc -zv ${{ secrets.SSH_HOST }} 22
+      - name: Test SSH connection to Scaleaway server
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ secrets.SCALEAWAY_HOST }}
+          username: root
+          key: ${{ secrets.SCALEAWAY_SSH_KEY }}
+          port: 22
+          script: |
+            echo "SSH connection successful!"
+            uname -a
