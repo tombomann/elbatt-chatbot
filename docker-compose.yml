@@ -1,11 +1,19 @@
-version: '3.8'
-
+version: "3.8"
 services:
   backend:
     build: ./backend
     ports:
       - "8000:8000"
     environment:
-      - API_KEY=${API_KEY}
-      - OTHER_ENV_VAR=${OTHER_ENV_VAR}
-    restart: unless-stopped
+      # legg inn miljøvariabler her
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      # miljøvariabler her
+    volumes:
+      - ./frontend:/app
