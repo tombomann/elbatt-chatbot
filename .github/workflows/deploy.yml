@@ -1,0 +1,86 @@
+name: Deploy Backend & Frontend with Rollback and Notifications
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  SSH_HOST: ${{ secrets.SCALEAWAY_HOST }}
+  SSH_USER: root
+  SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+  NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Build Backend Docker Image
+        working-directory: ./backend
+        run: docker build -t elbatt-backend .
+
+      - name: Build Frontend Docker Image
+        working-directory: ./frontend
+        run: docker build -t elbatt-frontend .
+
+      - name: Deploy to server
+        id: deploy
+        uses: appleboy/ssh-action@v0.1.8
+        continue-on-error: true
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ env.SSH_KEY }}
+          script: |
+            cd /root/elbatt-chatbot
+            docker-compose down
+            docker-compose up -d --build
+
+      - name: Rollback on failure
+        if: steps.deploy.outcome == 'failure'
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ env.SSH_KEY }}
+          script: |
+            cd /root/elbatt-chatbot
+            echo "Deploy feilet, kjører rollback til forrige commit"
+            git reset --hard HEAD~1
+            docker-compose down
+            docker-compose up -d --build
+
+      - name: Send failure notification email
+        if: steps.deploy.outcome == 'failure'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: '[Elbatt Chatbot] Deploy FEILET'
+          to: ${{ env.NOTIFY_EMAIL }}
+          from: Elbatt Chatbot <${{ secrets.SMTP_USERNAME }}>
+          body: Deploy feilet i workflow. Rollback forsøkt.
+
+      - name: Send success notification email
+        if: steps.deploy.outcome == 'success'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: '[Elbatt Chatbot] Deploy OK'
+          to: ${{ env.NOTIFY_EMAIL }}
+          from: Elbatt Chatbot <${{ secrets.SMTP_USERNAME }}>
+          body: Deploy fullført uten feil.
+
