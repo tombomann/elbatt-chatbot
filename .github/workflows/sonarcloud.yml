@@ -1,0 +1,46 @@
+name: SonarCloud Scan
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+jobs:
+  sonarcloud:
+    name: SonarCloud
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+
+      - name: Install Node dependencies
+        working-directory: frontend
+        run: npm install --legacy-peer-deps
+
+      - name: Install Python deps
+        run: pip install -r requirements.txt
+
+      - name: Run frontend tests (optional)
+        working-directory: frontend
+        run: npm run test -- --coverage || true
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2
+        with:
+          organization: ${{ secrets.SONAR_ORG }}
+          token: ${{ secrets.SONAR_TOKEN }}
