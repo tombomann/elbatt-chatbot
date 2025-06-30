@@ -32,9 +32,6 @@ jobs:
         working-directory: frontend
         run: npm install --legacy-peer-deps
 
-      - name: Install Python deps
-        run: pip install -r requirements.txt
-
       - name: Run frontend tests (optional)
         working-directory: frontend
         run: npm run test -- --coverage || true
