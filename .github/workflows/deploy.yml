@@ -1,4 +1,4 @@
-name: Deploy Backend & Frontend with Rollback, Notifications and Scan
+name: Deploy Backend & Frontend Direct to Scaleaway with Rollback, Notifications and Scan
 
 on:
   push:
@@ -11,13 +11,9 @@ env:
   SSH_USER: root
   SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
   NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
-  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-  DOCKER_BACKEND_REPO: yourdockeruser/elbatt-backend
-  DOCKER_FRONTEND_REPO: yourdockeruser/elbatt-frontend
 
 jobs:
-  build-and-push:
+  build:
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.get_tag.outputs.TAG }}
@@ -29,26 +25,8 @@ jobs:
         id: get_tag
         run: echo "TAG=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_OUTPUT
 
-      - name: Log in to DockerHub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ env.DOCKER_USERNAME }}
-          password: ${{ env.DOCKER_PASSWORD }}
-
-      - name: Build and push backend image
-        working-directory: ./backend
-        run: |
-          docker build -t $DOCKER_BACKEND_REPO:${{ steps.get_tag.outputs.TAG }} .
-          docker push $DOCKER_BACKEND_REPO:${{ steps.get_tag.outputs.TAG }}
-
-      - name: Build and push frontend image
-        working-directory: ./frontend
-        run: |
-          docker build -t $DOCKER_FRONTEND_REPO:${{ steps.get_tag.outputs.TAG }} .
-          docker push $DOCKER_FRONTEND_REPO:${{ steps.get_tag.outputs.TAG }}
-
   deploy:
-    needs: build-and-push
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
@@ -59,18 +37,18 @@ jobs:
         with:
           ssh-private-key: ${{ env.SSH_KEY }}
 
-      - name: Deploy to Scaleaway via SSH
+      - name: Deploy and build on Scaleaway
         id: deploy_step
         run: |
           set -e
           ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << EOF
             cd /root/elbatt-chatbot
-            echo "Oppdaterer miljøvariabel for docker tags"
-            echo "BACKEND_IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}" > .env
-            echo "FRONTEND_IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}" >> .env
-
-            docker-compose pull
-            docker-compose up -d --remove-orphans --build
+            git pull origin main
+            echo "BACKEND_IMAGE_TAG=${{ needs.build.outputs.image_tag }}" > .env
+            echo "FRONTEND_IMAGE_TAG=${{ needs.build.outputs.image_tag }}" >> .env
+            docker-compose down
+            docker-compose build
+            docker-compose up -d --remove-orphans
           EOF
 
   rollback:
@@ -88,11 +66,11 @@ jobs:
           ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << EOF
             set -e
             cd /root/elbatt-chatbot
-            echo "Rollback: Bytter til forrige docker image tag"
-            echo "BACKEND_IMAGE_TAG=previous_tag" > .env
-            echo "FRONTEND_IMAGE_TAG=previous_tag" >> .env
-            docker-compose pull
-            docker-compose up -d --remove-orphans --build
+            echo "Rollback: Starter gamle images (forrige git commit)"
+            git reset --hard HEAD~1
+            docker-compose down
+            docker-compose build
+            docker-compose up -d --remove-orphans
           EOF
 
   notify:
