@@ -1,0 +1,39 @@
+name: "CI/CD + AI Self-Heal"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_run:
+    workflows: ["CI", "Build", "Deploy", "ci-sonar"] # Kjør etter vanlige workflows
+
+jobs:
+  ai-self-heal:
+    name: "AI: Automatisk feilretting ved CI-feil"
+    runs-on: ubuntu-latest
+    if: ${{ failure() }}
+    steps:
+      - name: Sjekk ut kode
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Kjør AI-reparasjon
+        uses: OpenAI-Community/openai-github-actions@v2
+        with:
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          prompt: |
+            Du er en erfaren fullstack-utvikler. Dette prosjektet feilet i forrige GitHub Actions-kjøring. Analysér workflow-loggene og foreslå/push nødvendige endringer i kode eller config for å få build/test/deploy til å virke igjen. 
+            - Automatisk rett bugs, manglende avhengigheter og config.
+            - Hvis mulig, lag PR med detaljert commit-melding og kommentar på endringene.
+      - name: E-postvarsel ved feil og AI-reparasjon
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.NOTIFY_EMAIL }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "AI-rettelse ble kjørt på Elbatt Chatbot!"
+          to: ${{ secrets.NOTIFY_EMAIL }}
+          body: |
+            AI har forsøkt å rette feil i Elbatt Chatbot sitt repo. Sjekk GitHub for detaljer.
