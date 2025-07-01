@@ -1,56 +1,8 @@
-<<<<<<< HEAD
-name: Full CI/CD with Tests and SonarCloud
-=======
 name: Full CI/CD Pipeline with Self-Healing Deploy
->>>>>>> 1f4c5bed (Legg til full CI/CD-pipeline med test, deploy og rollback)
 
 on:
   push:
     branches: [main]
-<<<<<<< HEAD
-  pull_request:
-    branches: [main]
-
-jobs:
-  build-test-analyze-deploy:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest
-
-      - name: Run Pytest
-        run: pytest tests/
-
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@v2
-        with:
-          projectBaseDir: .
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-      - name: Deploy to Hetzner
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.SCALEAWAY_HOST }}
-          username: root
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd /root/elbatt-chatbot
-            git pull origin main
-            systemctl restart elbatt-chatbot
-=======
   workflow_dispatch:
 
 env:
@@ -109,10 +61,10 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Deploy backend to Scaleway (Hetzner)
+      - name: Deploy backend to Scaleway
         run: |
           ssh -o StrictHostKeyChecking=no root@$SSH_HOST '
             cd /root/elbatt-chatbot &&
             docker-compose pull &&
             docker-compose up -d --force-recreate
->>>>>>> 1f4c5bed (Legg til full CI/CD-pipeline med test, deploy og rollback)
+          '
