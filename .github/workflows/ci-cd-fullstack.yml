@@ -1,0 +1,87 @@
+name: CI/CD Fullstack Elbatt
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-frontend:
+    name: Bygg & test frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Sjekk ut repo
+        uses: actions/checkout@v4
+
+      - name: Sett opp Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Installer avhengigheter
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Kjør tester
+        run: |
+          cd frontend
+          npm test -- --watchAll=false
+
+      - name: Bygg frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: SonarCloud analyse
+        uses: SonarSource/sonarcloud-github-action@v2
+        with:
+          args: >
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+            -Dsonar.token=${{ secrets.SONAR_TOKEN }}
+            -Dsonar.sources=frontend/src
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  deploy-frontend:
+    name: Deploy frontend til Scaleway (Docker)
+    runs-on: ubuntu-latest
+    needs: build-frontend
+
+    steps:
+      - name: Sjekk ut repo
+        uses: actions/checkout@v4
+
+      - name: Sett opp SSH nøkkel for Scaleway
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SCALEAWAY_SSH_KEY }}
+
+      - name: Deploy til server via SSH
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SCALEAWAY_HOST }} '
+            cd ~/elbatt-chatbot/frontend &&
+            git pull origin main &&
+            ./deploy_frontend.sh
+          '
+
+      - name: Healthcheck frontend
+        run: |
+          sleep 8
+          curl -f http://51.15.203.146:8080/ || exit 1
+
+      - name: Send e-post ved feil
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.NOTIFY_EMAIL }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "[ALERT] Deploy feilet!"
+          to: ${{ secrets.NOTIFY_EMAIL }}
+          body: |
+            Deploy feilet for frontend på Elbatt Chatbot! Sjekk GitHub Actions-logg.
