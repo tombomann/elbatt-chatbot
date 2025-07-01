@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   backend:
     build:
@@ -8,10 +10,10 @@ services:
     env_file:
       - .env
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - VEGVESEN_API_KEY=${VEGVESEN_API_KEY}
-      - VAR1=value1
-      - VAR2=value2    
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      VEGVESEN_API_KEY: ${VEGVESEN_API_KEY}
+      VAR1: value1
+      VAR2: value2
     restart: unless-stopped
 
   frontend:
