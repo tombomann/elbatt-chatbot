@@ -31,7 +31,9 @@ jobs:
           fi
 
       - name: Install Python dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
 
       - name: Run backend tests
         run: |
@@ -45,7 +47,6 @@ jobs:
           args: >
             -Dsonar.projectKey=tombomann_elbatt-chatbot
             -Dsonar.organization=tombomann
-            -Dsonar.token=${{ secrets.SONAR_TOKEN }}
             -Dsonar.python.version=3.12
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -61,10 +62,26 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Deploy backend to Scaleway
+      - name: Deploy backend to Scaleway (Hetzner)
         run: |
           ssh -o StrictHostKeyChecking=no root@$SSH_HOST '
             cd /root/elbatt-chatbot &&
             docker-compose pull &&
             docker-compose up -d --force-recreate
           '
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy frontend to Netlify
+        uses: nwtgck/actions-netlify@v2.0
+        with:
+          publish-dir: ./frontend/build
+          production-deploy: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          deploy-message: "Deploy from CI/CD pipeline"
+          netlify-auth-token: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          netlify-site-id: ${{ secrets.NETLIFY_SITE_ID }}
