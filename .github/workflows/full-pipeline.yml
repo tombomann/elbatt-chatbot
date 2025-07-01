@@ -45,7 +45,7 @@ jobs:
         uses: SonarSource/sonarcloud-github-action@v2
         with:
           args: >
-            -Dsonar.projectKey=tombomann_elbatt-chatbot
+            -Dsonar.projectKey=tombomann
             -Dsonar.organization=tombomann
             -Dsonar.python.version=3.12
         env:
