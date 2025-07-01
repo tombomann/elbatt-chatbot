@@ -1,8 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
-test('renders learn react link', () => {
+test('renders chat button', () => {
+  // Sjekker om knappen med aria-label "Åpne chat" finnes i DOM
   render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+  const chatButton = screen.getByRole('button', { name: /chat|åpne chat/i });
+  expect(chatButton).toBeInTheDocument();
 });
