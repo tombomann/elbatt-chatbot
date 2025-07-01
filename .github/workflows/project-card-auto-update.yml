@@ -1,0 +1,20 @@
+name: Oppdater GitHub Project Cards
+
+on:
+  workflow_run:
+    workflows: ["full-pipeline"]
+    types:
+      - completed
+
+jobs:
+  update-project-card:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Oppdater kort i GitHub Project
+        uses: peter-evans/create-or-update-project-card@v2
+        with:
+          project-url: https://github.com/users/tombomann/projects/1
+          column-name: "Done"
+          note: "Workflow fullført og kort flyttet automatisk."
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
