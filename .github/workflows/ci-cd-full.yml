@@ -87,5 +87,5 @@ jobs:
           body: |
             Byggpipeline feilet på ${{ github.repository }}.
             Sjekk GitHub Actions: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          to: DIN_EMAIL@eksempel.no
+          to: tomarnejensen@gmail.com
           from: ${{ secrets.GMAIL_USERNAME }}
