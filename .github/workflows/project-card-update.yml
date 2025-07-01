@@ -1,0 +1,17 @@
+name: Update Project Cards
+
+on:
+  issues:
+    types: [closed]
+  pull_request:
+    types: [closed]
+
+jobs:
+  update-project-card:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update project card
+        uses: actions/add-to-project@v1.0.1
+        with:
+          project-url: https://github.com/users/tombomann/projects/1
+          github-token: ${{ secrets.GITHUB_TOKEN }}
