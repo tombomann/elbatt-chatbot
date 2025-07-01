@@ -1,4 +1,15 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Node
 node_modules/
-build/
-.env
+frontend/build/
 *.log
+
+# Env & secrets
+.env
+
+# Netlify (valgfritt)
+.netlify/
