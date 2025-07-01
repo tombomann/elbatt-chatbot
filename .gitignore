@@ -1,5 +1,9 @@
-.env
-.env
+# Python
+venv/
+__pycache__/
+
+# Node
+node_modules/
 
 # Local Netlify folder
 .netlify
