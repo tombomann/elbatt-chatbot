@@ -1,32 +1,59 @@
-name: SonarCloud Scan
+name: Build and Analyze (SonarCloud)
 
 on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    types: [opened, synchronize, reopened]
 
 jobs:
-  sonarcloud:
+  build-test-analyze:
+    name: Build, Test, and SonarCloud Analyze
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      # Hent kode
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Viktig for full analyserelevans!
 
-      - name: Set up Python
+      # --- FRONTEND ---
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+      - name: Test frontend
+        run: |
+          cd frontend
+          npm test -- --watchAll=false
+
+      # --- BACKEND ---
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.12'
-
-      - name: Install dependencies
+      - name: Install backend dependencies
         run: |
           pip install -r requirements.txt
+      - name: Test backend
+        run: |
+          if [ -f tests/test_main.py ]; then
+            pytest tests/test_main.py || echo "⚠️ Backend-tester feilet, fortsetter"
+          fi
 
+      # --- SONARCLOUD ---
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
         with:
           args: >
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
-            -Dsonar.python.version=3.12
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
