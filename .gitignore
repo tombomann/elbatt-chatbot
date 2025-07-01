@@ -1,9 +1,6 @@
-# Python
 venv/
-__pycache__/
-
-# Node
+.env
 node_modules/
-
-# Local Netlify folder
-.netlify
+frontend/build/
+*.pyc
+__pycache__/
