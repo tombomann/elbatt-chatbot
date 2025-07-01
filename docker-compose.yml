@@ -1,19 +1,25 @@
-version: "3.8"
+version: '3.8'
+
 services:
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
-      # legg inn miljøvariabler her
-    volumes:
-      - ./backend:/app
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      VEGVESEN_API_KEY: ${VEGVESEN_API_KEY}
+      VAR1: value1
+      VAR2: value2
+    restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
-      - "3000:3000"
-    environment:
-      # miljøvariabler her
-    volumes:
-      - ./frontend:/app
+      - "80:80"
+    restart: unless-stopped
