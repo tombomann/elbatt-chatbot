@@ -10,6 +10,8 @@ services:
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - VEGVESEN_API_KEY=${VEGVESEN_API_KEY}
+      - VAR1=value1
+      - VAR2=value2    
     restart: unless-stopped
 
   frontend:
