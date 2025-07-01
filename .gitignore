@@ -1,6 +1,0 @@
-venv/
-.env
-node_modules/
-frontend/build/
-*.pyc
-__pycache__/
