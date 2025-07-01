@@ -1,0 +1,41 @@
+name: Automatisk AI-kodefiks med OpenAI
+
+on:
+  workflow_run:
+    workflows: ["full-pipeline"]
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  autofix:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sjekk ut repo
+        uses: actions/checkout@v4
+
+      - name: Sett opp Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Installer openai
+        run: pip install openai
+
+      - name: Kjør AI autofix-script
+        run: |
+          python scripts/ai_autofix.py
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AI_AUTOFIX_ERROR: ${{ github.event.workflow_run.head_commit.message }}
+
+      - name: Commit og push AI-fix
+        run: |
+          git config --global user.email "noreply@github.com"
+          git config --global user.name "AI Autofix Bot"
+          git add tests/test_main.py
+          git commit -m "AI-fix: automatisk rettet test_main.py etter pipeline-feil" || echo "Ingenting å endre"
+          git push || echo "Ingenting å pushe"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
