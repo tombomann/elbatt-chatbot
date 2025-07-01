@@ -1,38 +1,22 @@
-# .github/workflows/ci-auto-ai-fix.yml
-name: "CI/CD + AI Self-Heal"
+name: "Auto AI-fix & PR"
 
 on:
-  workflow_run:
-    workflows: ["CI", "Build", "Deploy", "ci-sonar"]
-    types:
-      - completed
+  push:
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
-  ai-self-heal:
-    name: "AI: Automatisk feilretting ved CI-feil"
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+  ai-fix:
     runs-on: ubuntu-latest
     steps:
-      - name: Sjekk ut kode
-        uses: actions/checkout@v4
-
-      - name: Kjør AI-reparasjon med OpenAI
-        uses: OpenAI-Community/openai-github-actions@v2
+      - uses: actions/checkout@v4
+      - name: Run AI-fix
+        run: |
+          # (her kunne du kalle Python-script som bruker OpenAI for å “fikse” filer)
+          echo "Simulert AI-fiks"
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v6
         with:
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
-          prompt: |
-            Du er en erfaren fullstack-utvikler. Prosjektet feilet i forrige GitHub Actions-kjøring. Analysér workflow-loggene og foreslå og PUSH nødvendige endringer i kode eller config for å få build/test/deploy til å virke igjen. 
-            - Rett bugs, manglende avhengigheter og config automatisk.
-            - Lag Pull Request med tydelig commit-melding.
-
-      - name: E-postvarsel ved feil og AI-reparasjon
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: ${{ secrets.NOTIFY_EMAIL }}
-          password: ${{ secrets.SMTP_PASSWORD }}
-          subject: "AI-rettelse ble kjørt på Elbatt Chatbot!"
-          to: ${{ secrets.NOTIFY_EMAIL }}
-          body: |
-            AI har forsøkt å rette feil i Elbatt Chatbot sitt repo. Sjekk GitHub for detaljer.
+          branch: ai-auto-fix
+          title: "AI AutoFix: PR"
+          commit-message: "Automatisk AI-fiks commit"
