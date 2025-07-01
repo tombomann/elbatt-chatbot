@@ -1,0 +1,91 @@
+name: CI/CD Full – Frontend (CRA) + Backend (pytest) + SonarCloud + Email
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  frontend:
+    name: Frontend – Test & Build & SonarCloud
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Bruk Node 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Installer avhengigheter
+        run: npm ci
+
+      - name: Kjør tester
+        run: npm run test -- --watchAll=false --coverage
+
+      - name: Bygg frontend
+        run: npm run build
+
+      - name: SonarCloud Scan (Frontend)
+        uses: SonarSource/sonarcloud-github-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: frontend
+
+  backend:
+    name: Backend – Pytest & SonarCloud
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sett opp Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Installer avhengigheter
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Kjør pytest
+        run: pytest --maxfail=1 --disable-warnings --cov
+
+      - name: SonarCloud Scan (Backend)
+        uses: SonarSource/sonarcloud-github-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: backend
+
+  email-on-failure:
+    name: Send e-post ved feil
+    needs: [frontend, backend]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send e-post hvis noen steg feiler
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.GMAIL_USERNAME }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: "🚨 Elbatt Chatbot CI/CD Pipeline feilet"
+          body: |
+            Byggpipeline feilet på ${{ github.repository }}.
+            Sjekk GitHub Actions: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          to: DIN_EMAIL@eksempel.no
+          from: ${{ secrets.GMAIL_USERNAME }}
