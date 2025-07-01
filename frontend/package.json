@@ -4,8 +4,7 @@
   "private": true,
   "dependencies": {
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-scripts": "^0.0.0"
+    "react-dom": "^18.3.1"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -19,6 +18,7 @@
     "not op_mini all"
   ],
   "devDependencies": {
-    "@testing-library/react": "^13.4.0"
+    "@testing-library/react": "^13.4.0",
+    "react-scripts": "^0.0.0"
   }
 }
