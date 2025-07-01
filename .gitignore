@@ -1,13 +1,4 @@
-# Python
-venv/
-__pycache__/
-
-# Node
 node_modules/
-
-# Local Netlify folder
-.netlify
+build/
 .env
-frontend/build/
-frontend/package.json.save
-node_modules/
+*.log
