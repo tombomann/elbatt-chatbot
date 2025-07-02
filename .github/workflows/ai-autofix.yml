@@ -1,13 +1,14 @@
-name: AI Autofix on CI Failure
+name: AI AutoFix and PR
 
 on:
   workflow_run:
     workflows: ["CI"]
     types:
       - completed
+    branches: [main]
 
 jobs:
-  autofix:
+  ai-fix-and-pr:
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     runs-on: ubuntu-latest
     permissions:
@@ -15,32 +16,53 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: Sjekk ut repo
+      - name: Sjekk ut kode
         uses: actions/checkout@v4
-
-      - name: Last ned artifact med feil-logg
-        uses: actions/download-artifact@v4
         with:
-          name: ci-error-log
-          path: tmp/
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Sett opp Python
-        uses: actions/setup-python@v5
+      - name: Sett opp Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: '3.11'
+          node-version: 20
 
-      - name: Kjør AI-autofix på logg
-        run: python3 scripts/ai_autofix.py tmp/ci_error_log.txt
-
-      - name: Commit og push endringer
+      - name: Installer frontend dependencies
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "[AI Autofix] Automatisk fiks av CI-feil" || echo "Ingenting å committe"
-          git push
+          cd frontend
+          npm install
 
-      - name: Rerun CI
-        run: gh workflow run CI.yml
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Kjør tester
+        run: |
+          cd frontend
+          npm run test || true
+
+      - name: AI-fix script (placeholder)
+        run: |
+          echo "// AI-autofix script kjøres her" > README_AI_FIX.md
+          echo "🚧 Automatisk fiks simulert."
+
+      - name: Commit endringer hvis noen filer er rettet
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add .
+          git diff --cached --quiet || git commit -m "[AI Fix] Automatisk commit"
+
+      - name: Sett remote-URL med token (viktig!)
+        run: |
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+
+      - name: Lag automatisk PR til main
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ai-auto-fix
+          title: AI AutoFix: Automatisk PR
+          body: Denne PR-en er laget automatisk etter AI-feilretting.
+          delete-branch: true
+          base: main
+          commit-message: "[create-pull-request] automated change"
+          committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          author: tombomann <206108200+tombomann@users.noreply.github.com>
+          signoff: false
+          draft: false
