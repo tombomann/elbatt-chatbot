@@ -1,57 +1,46 @@
-name: "OpenAI Autofix CI/CD"
+name: AI Autofix on CI Failure
+
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
 
 jobs:
-  openai-autofix:
+  autofix:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     runs-on: ubuntu-latest
-    if: ${{ github.actor != 'github-actions[bot]' }}
+    permissions:
+      contents: write
+      pull-requests: write
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Sjekk ut repo
+        uses: actions/checkout@v4
+
+      - name: Last ned artifact med feil-logg
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-error-log
+          path: tmp/
 
       - name: Sett opp Python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.11
+          python-version: '3.11'
 
-      - name: Installer OpenAI SDK
-        run: pip install openai
+      - name: Kjør AI-autofix på logg
+        run: python3 scripts/ai_autofix.py tmp/ci_error_log.txt
 
-      - name: Kjør OpenAI autofix
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python scripts/openai_autofix.py
-
-      - name: Commit og push OpenAI endringer
+      - name: Commit og push endringer
         run: |
-          git config --global user.email "bot@elbatt.no"
-          git config --global user.name "Elbatt AI Bot"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .
-          git diff --staged --quiet || (git commit -m "OpenAI autofix: automatisk kodeforbedring" && git push origin HEAD:openai-autofix/${{ github.sha }})
+          git commit -m "[AI Autofix] Automatisk fiks av CI-feil" || echo "Ingenting å committe"
+          git push
 
-      - name: Opprett PR hvis endringer
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: openai-autofix/${{ github.sha }}
-          delete-branch: true
-          title: "OpenAI Autofix: Kodeforbedringer"
-          body: "Automatisk PR laget av OpenAI-integrert pipeline."
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-  automerge:
-    needs: openai-autofix
-    runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'pull_request' }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Automerge PR hvis tester er grønne
-        uses: pascalgn/automerge-action@v0.16.3
+      - name: Rerun CI
+        run: gh workflow run CI.yml
         env:
-        
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MERGE_LABELS: ""
-          MERGE_METHOD: "merge"
-          MERGE_COMMIT_MESSAGE: "Auto-merge: alle tester grønne"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
