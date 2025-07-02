@@ -2,7 +2,7 @@ name: OpenAI Autofix Full Auto
 
 on:
   workflow_run:
-    workflows: ["CI/CD Fullstack", "ci-cd-fullstack.yml"] # Ditt hoved-workflow navn
+    workflows: ["CI/CD Fullstack", "ci-cd-fullstack.yml"] # Ditt hoved-workflow navn, evt. flere
     types:
       - completed
 
