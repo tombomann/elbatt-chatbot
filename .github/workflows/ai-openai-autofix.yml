@@ -49,8 +49,8 @@ jobs:
           body: |
             OpenAI har analysert feilen og foreslår kodeendringer for å fikse pipeline.
             Auto-merge aktiveres hvis PR blir grønn!
-          delete-branch: true
-          draft: false
+          delete-branch:
+          draft: 
 
       # Auto-merge hvis tester er grønne
       - name: Auto-merge
