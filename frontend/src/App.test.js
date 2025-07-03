@@ -8,3 +8,4 @@ test('renders chat button', () => {
   const chatButton = screen.getByRole('button', { name: /chat|åpne chat/i });
   expect(chatButton).toBeInTheDocument();
 });
+console.log('Ugyldig <- feil test')
