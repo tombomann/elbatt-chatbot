@@ -1,4 +1,4 @@
-// Messenger-style chatbot widget med klikkbar kontaktinfo (embed.js)
+// Messenger-style chatbot widget med tekst (embed.js)
 (function () {
     const apiEndpoint = "https://chatbot.elbatt.no/api/chat";
 
@@ -158,12 +158,7 @@
     function addMsg(txt, who) {
         let el = document.createElement('div');
         el.className = 'elbot-msg elbot-msg-' + who;
-        // Tillat HTML i botsvar, men ikke i brukersvar
-        if (who === 'bot' && /<\/?[a-z][\s\S]*>/i.test(txt)) {
-            el.innerHTML = txt;
-        } else {
-            el.textContent = txt;
-        }
+        el.textContent = txt;
         messagesEl.appendChild(el);
         messagesEl.scrollTop = messagesEl.scrollHeight;
     }
@@ -184,10 +179,9 @@
                 credentials: "include"
             });
             let data = await res.json();
-            // Tillat HTML hvis backend sender det (f.eks. klikkbare lenker)
-            addMsg(data.response || "Bot svarer ikke.", "bot");
+            messagesEl.querySelector('.elbot-msg-bot:last-child').textContent = data.response || "Bot svarer ikke.";
         } catch (err) {
-            addMsg("Kunne ikke koble til server 😢", "bot");
+            messagesEl.querySelector('.elbot-msg-bot:last-child').textContent = "Kunne ikke koble til server 😢";
         }
     };
 
