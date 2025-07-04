@@ -1,4 +1,4 @@
-name: AI AutoFix and PR
+name: AI AutoFix OG PR
 
 on:
   workflow_run:
