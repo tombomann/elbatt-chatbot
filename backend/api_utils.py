@@ -1,6 +1,7 @@
 import os
 import logging
 
+
 # Enkel funksjon som simulerer kall til OpenAI API
 def call_openai_api(message: str, api_key: str = None) -> str:
     if not api_key:
@@ -10,9 +11,11 @@ def call_openai_api(message: str, api_key: str = None) -> str:
     # Foreløpig simulerer vi svar:
     return f"Simulert svar på: {message}"
 
+
 # Dummy-funksjon for logging av leads eller henvendelser
 def log_lead(message: str, svar: str = None) -> None:
     logging.info(f"Logg lead: Melding: {message} | Svar: {svar}")
+
 
 # Dummy-funksjon for sending av e-post (kan bygges ut med f.eks. smtplib)
 def send_email(to: str, subject: str, body: str) -> bool:

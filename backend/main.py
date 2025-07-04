@@ -18,10 +18,12 @@ app = FastAPI()
 # Server alle filer i public/ direkte på root
 # app.mount("/", StaticFiles(directory="public", html=True), name="static")
 
+
 # Test-endepunkt (for helsesjekk)
 @app.get("/ping")
 async def ping():
     return {"status": "ok"}
+
 
 # Eksempel: Endepunkt for chatmeldinger (POST fra frontend/chat-widget)
 @app.post("/api/chat")
@@ -33,10 +35,11 @@ async def chat(request: Request):
 
     # Kall OpenAI via api_utils (f.eks. med GPT-4)
     response = call_openai_api(message, api_key=openai_api_key)
-    
+
     # Logg henvendelsen om ønskelig:
     # log_lead(message, svar=response)
-    
+
     return {"response": response}
+
 
 # Flere endepunkt kan legges til etter behov!
