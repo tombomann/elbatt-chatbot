@@ -1,0 +1,96 @@
+name: Deploy fullstack (Elbatt Chatbot) med alle secrets
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy-backend-scaleway:
+    name: Deploy backend til Scaleway
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout kode
+        uses: actions/checkout@v4
+
+      - name: Sync kode til Scaleway-server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SCALEAWAY_HOST }}
+          username: root
+          key: ${{ secrets.SCALEAWAY_SSH_KEY }}
+          source: "."
+          target: "/root/elbatt-chatbot"
+
+      - name: Skriv .env med secrets på server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SCALEAWAY_HOST }}
+          username: root
+          key: ${{ secrets.SCALEAWAY_SSH_KEY }}
+          script: |
+            cd /root/elbatt-chatbot
+            cat <<EOF > .env
+            # Backend environment (auto-generated)
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+            VEGVESEN_API_KEY=${{ secrets.VEGVESEN_API_KEY }}
+            SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}
+            SONAR_ORGANIZATION=${{ secrets.SONAR_ORGANIZATION }}
+            SONAR_PROJECT_KEY=${{ secrets.SONAR_PROJECT_KEY }}
+            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
+            SENTRY_ORG=${{ secrets.SENTRY_ORG }}
+            SENTRY_PROJECT=${{ secrets.SENTRY_PROJECT }}
+            SLACK_WEBHOOK=${{ secrets.SLACK_WEBHOOK }}
+            SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
+            GITHUB=${{ secrets.GITHUB }}
+            PAT=${{ secrets.PAT }}
+            PAT_TOKEN=${{ secrets.PAT_TOKEN }}
+            NOTIFY_EMAIL=${{ secrets.NOTIFY_EMAIL }}
+            NETLIFY_AUTH_TOKEN=${{ secrets.NETLIFY_AUTH_TOKEN }}
+            NETLIFY_SITE_ID=${{ secrets.NETLIFY_SITE_ID }}
+            SSH_PRIVATE_KEY=${{ secrets.SSH_PRIVATE_KEY }}
+            MAC=${{ secrets.MAC }}
+            # ...legg til flere om nødvendig
+            EOF
+
+      - name: Installer Python requirements og restart backend
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SCALEAWAY_HOST }}
+          username: root
+          key: ${{ secrets.SCALEAWAY_SSH_KEY }}
+          script: |
+            cd /root/elbatt-chatbot
+            python3 -m venv venv || true
+            source venv/bin/activate
+            pip install --upgrade pip
+            pip install -r requirements.txt
+            pkill -f uvicorn || true
+            nohup uvicorn backend.main:app --host 0.0.0.0 --port 8000 &
+
+  deploy-frontend-netlify:
+    name: Deploy frontend til Netlify
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout kode
+        uses: actions/checkout@v4
+
+      - name: Installer dependencies
+        run: npm install
+
+      - name: Bygg frontend
+        run: npm run build
+
+      - name: Deploy til Netlify
+        uses: nwtgck/actions-netlify@v3.0
+        with:
+          publish-dir: ./frontend/build
+          production-deploy: true
+          deploy-message: "Auto-deploy fra GitHub Actions"
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        env:
+          REACT_APP_API_HOST: ${{ secrets.REACT_APP_API_HOST }}
+          # Legg til evt. flere vars hvis frontend trenger dem!
