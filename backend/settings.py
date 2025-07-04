@@ -1,6 +1,7 @@
 import os
 from pydantic_settings import BaseSettings, SettingsError
 
+
 class Settings(BaseSettings):
     openai_api_key: str = os.environ.get("OPENAI_API_KEY", "")
     vegvesen_api_key: str = os.environ.get("VEGVESEN_API_KEY", "")
@@ -8,7 +9,9 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
 
+
 settings = Settings()
+
 
 # Robust fallback: sjekk at nøkler finnes, eller kast tydelig feil
 def check_keys():

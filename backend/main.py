@@ -9,21 +9,24 @@ from starlette.status import HTTP_404_NOT_FOUND
 
 # --- Import backend-tjenester ---
 from backend.openai_service import call_openai_api  # Henter API-nøkkel fra env
-from backend.vegvesen_service import lookup_vehicle # Henter API-nøkkel fra env
-from backend.produktfeed import finn_produkt        # Produktfeed/cache
+from backend.vegvesen_service import lookup_vehicle  # Henter API-nøkkel fra env
+from backend.produktfeed import finn_produkt  # Produktfeed/cache
+
 
 # --- Pydantic-modeller ---
 class ChatRequest(BaseModel):
     message: str
 
+
 class VegvesenRequest(BaseModel):
     regnr: str
+
 
 # --- App-setup ---
 app = FastAPI(
     title="Elbatt Chatbot API",
     version="1.3",
-    description="Chatbot-backend med OpenAI, Vegvesen, produktfeed og statiske filer"
+    description="Chatbot-backend med OpenAI, Vegvesen, produktfeed og statiske filer",
 )
 
 # --- CORS (tillat bare domener du stoler på) ---
@@ -33,21 +36,24 @@ app.add_middleware(
         "https://elbatt.no",
         "https://www.elbatt.no",
         "https://chatbot.elbatt.no",
-        "https://elbatt-test.netlify.app"
+        "https://elbatt-test.netlify.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+
 # --- API endpoints under /api/ ---
 @app.get("/api/ping")
 def ping():
     return {"status": "ok"}
 
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
@@ -65,6 +71,7 @@ async def chat(request: ChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"API-feil: {e}")
 
+
 @app.post("/api/vegvesen")
 async def vegvesen_lookup(request: VegvesenRequest):
     try:
@@ -73,6 +80,7 @@ async def vegvesen_lookup(request: VegvesenRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Vegvesen API-feil: {e}")
 
+
 # --- API 404 handler (JSON for /api/, ellers statisk) ---
 @app.exception_handler(404)
 async def api_not_found(request: Request, exc):
@@ -80,5 +88,8 @@ async def api_not_found(request: Request, exc):
         return JSONResponse(status_code=404, content={"error": "Not found"})
     return await app.default_exception_handler(request, exc)
 
+
 # --- Serve statiske filer fra /public ---
-app.mount("/", StaticFiles(directory="/root/elbatt-chatbot/public", html=True), name="static")
+app.mount(
+    "/", StaticFiles(directory="/root/elbatt-chatbot/public", html=True), name="static"
+)
