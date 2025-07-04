@@ -1,4 +1,4 @@
-#!/root/elbatt-chatbot/venv/bin/python3
+#!/root/elbatt-chatbot/venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys
