@@ -9,8 +9,9 @@ AWS_BUCKET_NAME = os.getenv("AWS_BUCKET_NAME", "elbatt-chatbot-backup")
 s3 = boto3.client(
     "s3",
     aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
 )
+
 
 def download_backup(file_name, bucket=AWS_BUCKET_NAME, dest_path="."):
     try:
@@ -18,6 +19,7 @@ def download_backup(file_name, bucket=AWS_BUCKET_NAME, dest_path="."):
         print(f"Backup lastet ned fra s3://{bucket}/{file_name} til {dest_path}")
     except ClientError as e:
         print(f"Feil ved nedlasting: {e}")
+
 
 if __name__ == "__main__":
     backup_file = "backup_latest.zip"

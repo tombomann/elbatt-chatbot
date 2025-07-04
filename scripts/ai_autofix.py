@@ -1,33 +1,22 @@
-import openai
 import os
+import openai
+import re
+import json
+import subprocess
+from pathlib import Path
 
-TARGET_FILE = "tests/test_main.py"
-ERROR_MSG = os.environ.get("AI_AUTOFIX_ERROR", "Skriv om denne filen slik at den kjører grønt i pytest og dekker hovedlogikken. Returner kun gyldig Python.")
+# Krever at OPENAI_API_KEY er satt i GitHub Actions secrets
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-openai.api_key = os.environ["OPENAI_API_KEY"]
+# 🔍 Finn siste feillogg (fra npm eller annet)
+LOG_FILE = "/tmp/ci_error_log.txt"  # Legg inn output fra feilet jobb her
+if not Path(LOG_FILE).exists():
+    print("❌ Ingen feillogg funnet.")
+    exit(1)
 
-with open(TARGET_FILE, "r") as f:
-    code = f.read()
+with open(LOG_FILE, "r") as f:
+    log = f.read()
 
+# 🧠 Send feilmeldingen til OpenAI og be om forslag til fiks
 prompt = f"""
-Du er en erfaren Python-utvikler og testspesialist. Rett denne koden slik at alle tester går grønt:
----
-Kode:
-{code}
----
-Feilmelding/logg:
-{ERROR_MSG}
----
-Returner kun gyldig kode for filen, ingen forklaring.
-"""
-
-response = openai.ChatCompletion.create(
-    model="gpt-4o",
-    messages=[{"role": "user", "content": prompt}],
-    max_tokens=1500
-)
-
-fixed_code = response.choices[0].message.content.strip()
-with open(TARGET_FILE, "w") as f:
-    f.write(fixed_code)
-print("AI-fiks ferdig og skrevet til", TARGET_FILE)
+Du er en erfaren JavaScript-utvikler. Her er logg fra en feilet npm/CI-jobb:

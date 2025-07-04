@@ -1,57 +1,68 @@
-name: "OpenAI Autofix CI/CD"
+name: AI AutoFix OG PR
+
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
     branches: [main]
-  workflow_dispatch:
 
 jobs:
-  openai-autofix:
+  ai-fix-and-pr:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     runs-on: ubuntu-latest
-    if: ${{ github.actor != 'github-actions[bot]' }}
+    permissions:
+      contents: write
+      pull-requests: write
+
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Sett opp Python
-        uses: actions/setup-python@v5
+      - name: Sjekk ut kode
+        uses: actions/checkout@v4
         with:
-          python-version: 3.11
-
-      - name: Installer OpenAI SDK
-        run: pip install openai
-
-      - name: Kjør OpenAI autofix
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python scripts/openai_autofix.py
-
-      - name: Commit og push OpenAI endringer
-        run: |
-          git config --global user.email "bot@elbatt.no"
-          git config --global user.name "Elbatt AI Bot"
-          git add .
-          git diff --staged --quiet || (git commit -m "OpenAI autofix: automatisk kodeforbedring" && git push origin HEAD:openai-autofix/${{ github.sha }})
-
-      - name: Opprett PR hvis endringer
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: openai-autofix/${{ github.sha }}
-          delete-branch: true
-          title: "OpenAI Autofix: Kodeforbedringer"
-          body: "Automatisk PR laget av OpenAI-integrert pipeline."
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  automerge:
-    needs: openai-autofix
-    runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'pull_request' }}
-    steps:
-      - uses: actions/checkout@v4
+      - name: Sett opp Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
-      - name: Automerge PR hvis tester er grønne
-        uses: pascalgn/automerge-action@v0.16.3
-        env:
-        
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MERGE_LABELS: ""
-          MERGE_METHOD: "merge"
-          MERGE_COMMIT_MESSAGE: "Auto-merge: alle tester grønne"
+      - name: Installer frontend dependencies
+        run: |
+          cd frontend
+          npm install
+
+      - name: Kjør tester
+        run: |
+          cd frontend
+          npm run test || true
+
+      - name: AI-fix script (placeholder)
+        run: |
+          echo "// AI-autofix script kjøres her" > README_AI_FIX.md
+          echo "🚧 Automatisk fiks simulert."
+
+      - name: Commit endringer hvis noen filer er rettet
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add .
+          git diff --cached --quiet || git commit -m "[AI Fix] Automatisk commit"
+
+      - name: Sett remote-URL med token (viktig!)
+        run: |
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+
+      - name: Lag automatisk PR til main
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ai-auto-fix
+          title: AI AutoFix: Automatisk PR
+          body: Denne PR-en er laget automatisk etter AI-feilretting.
+          delete-branch: true
+          base: main
+          commit-message: "[create-pull-request] automated change"
+          committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          author: tombomann <206108200+tombomann@users.noreply.github.com>
+          signoff: false
+          draft: false

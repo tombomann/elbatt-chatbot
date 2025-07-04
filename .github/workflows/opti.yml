@@ -1,0 +1,57 @@
+name: Optimaliser alle scripts i repo
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  optimize-scripts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Sjekk ut repo
+        uses: actions/checkout@v4
+
+      # Installer avhengigheter for alle scripts (tilpass etter behov)
+      - name: Installer Node.js avhengigheter (JS/TS)
+        run: |
+          if [ -f package.json ]; then
+            npm ci
+          fi
+
+      - name: Installer Python-avhengigheter (hvis requirements.txt finnes)
+        run: |
+          if [ -f requirements.txt ]; then
+            python3 -m pip install --upgrade pip
+            pip install -r requirements.txt
+          fi
+
+      # Kjør linter og formatter for JavaScript/TypeScript
+      - name: Kjør ESLint og Prettier (JS/TS)
+        run: |
+          if [ -f package.json ]; then
+            npx eslint . --fix || true
+            npx prettier --write . || true
+          fi
+
+      # Kjør linter og formatter for Python
+      - name: Kjør Black og Flake8 (Python)
+        run: |
+          if [ -f requirements.txt ]; then
+            pip install black flake8
+            black . || true
+            flake8 . || true
+          fi
+
+      # Legg til flere steg for andre språk og verktøy etter behov
+
+      # Commit og push endringer hvis noen filer er optimalisert
+      - name: Commit og push optimaliseringer
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add .
+          git diff --cached --quiet || git commit -m "Automatisk optimalisering av scripts"
+          git push
