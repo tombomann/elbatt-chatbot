@@ -2,7 +2,9 @@ import requests
 
 # DINE VERDIER HER:
 FLOWISE_API_KEY = "hVg_EudrAQDq6UEOuprq82YVgtUb1AEIG6U9ViYGYy8"  # <- Din API-key
-FLOWISE_HOST = "https://cloud.flowiseai.com"  # <- Eller https://elbatt-chatbot.onrender.com
+FLOWISE_HOST = (
+    "https://cloud.flowiseai.com"  # <- Eller https://elbatt-chatbot.onrender.com
+)
 
 CHATFLOW_FILE = "elbatt-chatflow.json"  # Filen du importerer
 
@@ -12,7 +14,7 @@ headers = {
     "Authorization": f"Bearer {FLOWISE_API_KEY}",
 }
 with open(CHATFLOW_FILE, "rb") as f:
-    files = {'file': f}
+    files = {"file": f}
     response = requests.post(url, files=files, headers=headers)
     resp_json = response.json()
 
