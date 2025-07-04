@@ -4,7 +4,8 @@ os.makedirs(".github/workflows", exist_ok=True)
 os.makedirs("tests", exist_ok=True)
 
 with open("tests/test_main.py", "w") as f:
-    f.write('''\
+    f.write(
+        """\
 from fastapi.testclient import TestClient
 from main import app
 
@@ -14,10 +15,12 @@ def test_ping():
     response = client.get("/api/ping")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
-''')
+"""
+    )
 
 with open(".github/workflows/full-pipeline.yml", "w") as f:
-    f.write('''\
+    f.write(
+        """\
 name: Full CI/CD with Tests and SonarCloud
 
 on:
@@ -65,4 +68,5 @@ jobs:
             cd /root/elbatt-chatbot
             git pull origin main
             systemctl restart elbatt-chatbot
-''')
+"""
+    )
