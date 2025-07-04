@@ -1,18 +1,25 @@
-- name: Generer .env fra Github Secrets
+- name: "Write .env file (all secrets)"
   run: |
-    cat <<EOF > .env
+    cat > .env <<EOF
     OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
     VEGVESEN_API_KEY=${{ secrets.VEGVESEN_API_KEY }}
     NETLIFY_AUTH_TOKEN=${{ secrets.NETLIFY_AUTH_TOKEN }}
     NETLIFY_SITE_ID=${{ secrets.NETLIFY_SITE_ID }}
+    NOTIFY_EMAIL=${{ secrets.NOTIFY_EMAIL }}
     SCALEAWAY_HOST=${{ secrets.SCALEAWAY_HOST }}
     SCALEAWAY_SSH_KEY=${{ secrets.SCALEAWAY_SSH_KEY }}
-    SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}
+    SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
+    SENTRY_ORG=${{ secrets.SENTRY_ORG }}
+    SENTRY_PROJECT=${{ secrets.SENTRY_PROJECT }}
+    SLACK_WEBHOOK=${{ secrets.SLACK_WEBHOOK }}
+    SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
     SONAR_ORGANIZATION=${{ secrets.SONAR_ORGANIZATION }}
     SONAR_PROJECT_KEY=${{ secrets.SONAR_PROJECT_KEY }}
-    SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
-    SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
-    SLACK_WEBHOOK=${{ secrets.SLACK_WEBHOOK }}
-    # Legg til alle du trenger her
+    SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}
+    SSH_PRIVATE_KEY=${{ secrets.SSH_PRIVATE_KEY }}
+    PAT=${{ secrets.PAT }}
+    PAT_TOKEN=${{ secrets.PAT_TOKEN }}
+    GITHUB=${{ secrets.GITHUB }}
+    MAC=${{ secrets.MAC }}
     EOF
-  shell: bash
+  # .env blir laget i katalogen der workflowen kjøres, typisk /root/elbatt-chatbot/.env
