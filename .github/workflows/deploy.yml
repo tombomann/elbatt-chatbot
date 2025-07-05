@@ -1,48 +1,38 @@
-name: Deploy to Scaleaway Server
-
-on:
-  push:
-    branches: [main]
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Create .env file
-      run: |
-        cat > .env <<EOF
-        OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-        VEGVESEN_API_KEY=${{ secrets.VEGVESEN_API_KEY }}
-        NETLIFY_AUTH_TOKEN=${{ secrets.NETLIFY_AUTH_TOKEN }}
-        NETLIFY_SITE_ID=${{ secrets.NETLIFY_SITE_ID }}
-        SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
-        SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}
-        SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
-        SCALEAWAY_HOST=${{ secrets.SCALEAWAY_HOST }}
-        SCALEAWAY_SSH_KEY=${{ secrets.SCALEAWAY_SSH_KEY }}
-        SLACK_WEBHOOK=${{ secrets.SLACK_WEBHOOK }}
-        EOF
+      - name: Lag .env-fil med secrets lokalt i runner
+        run: |
+          cat > .env <<EOF
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          VEGVESEN_API_KEY=${{ secrets.VEGVESEN_API_KEY }}
+          NETLIFY_AUTH_TOKEN=${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID=${{ secrets.NETLIFY_SITE_ID }}
+          SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
+          SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}
+          SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
+          SCALEAWAY_HOST=${{ secrets.SCALEAWAY_HOST }}
+          SCALEAWAY_SSH_KEY=${{ secrets.SCALEAWAY_SSH_KEY }}
+          SLACK_WEBHOOK=${{ secrets.SLACK_WEBHOOK }}
+          EOF
 
-    - name: Copy .env to server
-      uses: appleboy/scp-action@v0.1.5
-      with:
-        host: ${{ secrets.SCALEAWAY_HOST }}
-        username: root
-        key: ${{ secrets.SCALEAWAY_SSH_KEY }}
-        port: 22
-        source: ".env"
-        target: "/root/elbatt-chatbot/.env"
+      - name: Kopier .env til server via SSH
+        uses: appleboy/scp-action@v0.1.0
+        with:
+          host: ${{ secrets.SCALEAWAY_HOST }}
+          username: root
+          key: ${{ secrets.SCALEAWAY_SSH_KEY }}
+          source: ".env"
+          target: "/root/elbatt-chatbot/.env"
 
-    - name: Restart backend service on server
-      uses: appleboy/ssh-action@v0.1.6
-      with:
-        host: ${{ secrets.SCALEAWAY_HOST }}
-        username: root
-        key: ${{ secrets.SCALEAWAY_SSH_KEY }}
-        port: 22
-        script: |
-          systemctl restart elbatt-chatbot.service
+      - name: Restart backend-tjeneste på server
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.SCALEAWAY_HOST }}
+          username: root
+          key: ${{ secrets.SCALEAWAY_SSH_KEY }}
+          script: |
+            systemctl restart elbatt-chatbot.service
