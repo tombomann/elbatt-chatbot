@@ -1,34 +1,22 @@
-// Messenger-style chatbot widget med klikkbar kontaktinfo (embed.js)
+// --- Messenger-style chatbot widget med kontaktinfo (embed.js) ---
 (function () {
+    // Sett riktig backend-endepunkt:
     const apiEndpoint = "https://chatbot.elbatt.no/api/chat";
 
     // --- Style Injection ---
     const style = document.createElement('style');
     style.innerHTML = `
     .elbot-chat-btn {
-        min-width: 62px;
-        height: 62px;
-        padding: 0 24px 0 12px;
-        border-radius: 32px;
-        background: #0084FF;
+        min-width: 62px; height: 62px; padding: 0 24px 0 12px;
+        border-radius: 32px; background: #0084FF;
         box-shadow: 0 4px 20px rgba(0,80,220,0.20);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 3px solid #fff;
-        position: fixed;
-        bottom: 32px;
-        right: 32px;
-        cursor: pointer;
-        z-index: 2147483647;
-        font-weight: bold;
-        color: #fff;
-        font-size: 1.13em;
-        letter-spacing: 0.01em;
+        display: flex; align-items: center; justify-content: center;
+        border: 3px solid #fff; position: fixed; bottom: 32px; right: 32px;
+        cursor: pointer; z-index: 2147483647; font-weight: bold; color: #fff;
+        font-size: 1.13em; letter-spacing: 0.01em;
         transition: box-shadow 0.3s, background 0.2s;
         animation: elbot-float 1.8s infinite alternate cubic-bezier(0.4,0,0.2,1);
-        user-select: none;
-        gap: 10px;
+        user-select: none; gap: 10px;
     }
     .elbot-chat-btn:hover {
         box-shadow: 0 10px 32px rgba(0,80,220,0.25);
@@ -57,8 +45,7 @@
         font-size: 1.3em; cursor: pointer; background: transparent; border: none; color: #fff; padding: 0;
     }
     .elbot-chat-messages {
-        flex: 1; overflow-y: auto; padding: 16px 14px 16px 18px; background: #f8fafb;
-        font-size: 1em;
+        flex: 1; overflow-y: auto; padding: 16px 14px 16px 18px; background: #f8fafb; font-size: 1em;
     }
     .elbot-msg { margin-bottom: 14px; display: flex; }
     .elbot-msg-user { margin-left: auto; background: #e7fcfa; border-radius: 18px 2px 18px 18px; padding: 7px 14px; }
@@ -67,8 +54,7 @@
         display: flex; border-top: 1px solid #eee; background: #fff; padding: 11px;
     }
     .elbot-chat-input input {
-        flex: 1; border: none; outline: none; font-size: 1em; background: transparent;
-        padding: 7px;
+        flex: 1; border: none; outline: none; font-size: 1em; background: transparent; padding: 7px;
     }
     .elbot-chat-input button {
         background: #0084FF; color: #fff; border: none; border-radius: 18px;
@@ -81,7 +67,7 @@
     `;
     document.head.appendChild(style);
 
-    // --- Messenger-like SVG Avatar ---
+    // --- Avatar SVG ---
     const getAvatarSVG = () => `
       <svg class="elbot-chat-avatar" width="34" height="34" viewBox="0 0 36 36" fill="none">
         <circle cx="18" cy="18" r="18" fill="#0084FF"/>
@@ -89,7 +75,7 @@
       </svg>
     `;
 
-    // --- Elements ---
+    // --- Elementer ---
     const chatBtn = document.createElement("div");
     chatBtn.className = "elbot-chat-btn";
     chatBtn.innerHTML = getAvatarSVG() + '<span style="margin-left:8px;">Chat med oss!</span>';
@@ -118,25 +104,23 @@
     const inputField = chatWindow.querySelector("input");
 
     // --- Animér avatar mot musepeker/touch ---
-    let animFrame, pointer = {x: 0, y: 0}, follow = false;
-    function animateAvatar(e) {
+    let animFrame, pointer = {x: 0, y: 0};
+    function animateAvatar() {
         let rect = chatBtn.getBoundingClientRect();
         let cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
         let dx = pointer.x - cx, dy = pointer.y - cy;
-        let ang = Math.atan2(dy, dx) * 30 / Math.PI; // 0-30deg rotasjon
+        let ang = Math.atan2(dy, dx) * 30 / Math.PI;
         avatar.style.transform = `rotate(${ang}deg)`;
     }
     document.addEventListener('mousemove', (e) => {
-        pointer.x = e.clientX; pointer.y = e.clientY; follow = true;
+        pointer.x = e.clientX; pointer.y = e.clientY;
         if (animFrame) cancelAnimationFrame(animFrame);
         animFrame = requestAnimationFrame(animateAvatar);
     });
-    // Touch
     document.addEventListener('touchmove', (e) => {
         if(e.touches && e.touches.length) {
             pointer.x = e.touches[0].clientX;
             pointer.y = e.touches[0].clientY;
-            follow = true;
             if (animFrame) cancelAnimationFrame(animFrame);
             animFrame = requestAnimationFrame(animateAvatar);
         }
@@ -147,7 +131,7 @@
     chatBtn.onclick = () => {
         open = !open;
         chatWindow.classList.toggle("open", open);
-        if (open) inputField.focus();
+        if (open) setTimeout(() => inputField.focus(), 200);
     };
     closeBtn.onclick = () => {
         open = false;
@@ -158,7 +142,6 @@
     function addMsg(txt, who) {
         let el = document.createElement('div');
         el.className = 'elbot-msg elbot-msg-' + who;
-        // Tillat HTML i botsvar, men ikke i brukersvar
         if (who === 'bot' && /<\/?[a-z][\s\S]*>/i.test(txt)) {
             el.innerHTML = txt;
         } else {
@@ -180,17 +163,15 @@
             const res = await fetch(apiEndpoint, {
                 method: "POST",
                 headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({message: msg}),
-                credentials: "include"
+                body: JSON.stringify({message: msg})
             });
             let data = await res.json();
-            // Tillat HTML hvis backend sender det (f.eks. klikkbare lenker)
             addMsg(data.response || "Bot svarer ikke.", "bot");
         } catch (err) {
             addMsg("Kunne ikke koble til server 😢", "bot");
         }
     };
 
-    // --- Preload welcome message ---
+    // --- Velkomstmelding ---
     addMsg("Hei! Hvordan kan jeg hjelpe deg i dag? 🤖", "bot");
 })();
