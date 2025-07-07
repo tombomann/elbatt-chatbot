@@ -1,15 +1,16 @@
 import os
 import httpx
 
-VEGVESEN_API_URL = "https://akfell-datautlevering.atlas.vegvesen.no/enkeltoppslag/kjoretoydata"
+VEGVESEN_API_URL = (
+    "https://akfell-datautlevering.atlas.vegvesen.no/enkeltoppslag/kjoretoydata"
+)
+
 
 async def lookup_vehicle(regnr):
     api_key = os.getenv("VEGVESEN_API_KEY")
     if not api_key:
         raise Exception("VEGVESEN_API_KEY mangler i miljøvariabler")
-    headers = {
-        "SVV-Authorization": f"Apikey {api_key}"
-    }
+    headers = {"SVV-Authorization": f"Apikey {api_key}"}
     params = {"kjennemerke": regnr}
     async with httpx.AsyncClient(timeout=10) as client:
         r = await client.get(VEGVESEN_API_URL, headers=headers, params=params)
@@ -25,20 +26,27 @@ def format_vegvesen_svar(data):
         d = data["kjoretoydataListe"][0]
 
         # Registrert (førstegangsregistrering)
-        registrert = d.get("forstegangsregistrering", {}).get("registrertForstegangNorgeDato", "-")
-
-        # Bilmerke og modell
-        merke = d["godkjenning"]["tekniskGodkjenning"]["tekniskeData"]["generelt"]["merke"][0]["merke"]
-        modell = d["godkjenning"]["tekniskGodkjenning"]["tekniskeData"]["generelt"]["handelsbetegnelse"][0]
-
-        # Drivstoff
-        drivstoff = (
-            d["godkjenning"]["tekniskGodkjenning"]["tekniskeData"]["miljodata"]
-            ["miljoOgdrivstoffGruppe"][0]["drivstoffKodeMiljodata"]["kodeNavn"]
+        registrert = d.get("forstegangsregistrering", {}).get(
+            "registrertForstegangNorgeDato", "-"
         )
 
+        # Bilmerke og modell
+        merke = d["godkjenning"]["tekniskGodkjenning"]["tekniskeData"]["generelt"][
+            "merke"
+        ][0]["merke"]
+        modell = d["godkjenning"]["tekniskGodkjenning"]["tekniskeData"]["generelt"][
+            "handelsbetegnelse"
+        ][0]
+
+        # Drivstoff
+        drivstoff = d["godkjenning"]["tekniskGodkjenning"]["tekniskeData"]["miljodata"][
+            "miljoOgdrivstoffGruppe"
+        ][0]["drivstoffKodeMiljodata"]["kodeNavn"]
+
         # Motorinformasjon
-        motor = d["godkjenning"]["tekniskGodkjenning"]["tekniskeData"]["motorOgDrivverk"]["motor"][0]
+        motor = d["godkjenning"]["tekniskGodkjenning"]["tekniskeData"][
+            "motorOgDrivverk"
+        ]["motor"][0]
         motorkode = motor.get("motorKode", "-")
         effekt_kw = motor.get("drivstoff", [{}])[0].get("maksNettoEffekt", None)
         effekt_txt = f"{effekt_kw} kW" if effekt_kw else "-"
@@ -54,4 +62,3 @@ def format_vegvesen_svar(data):
         return svar
     except Exception as e:
         return f"Kunne ikke hente kjøretøydata: {str(e)}"
-
