@@ -12,15 +12,21 @@ from backend.faq import faq_match
 from backend.logger import log_chat
 
 # --- Miljøvariabler ---
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "https://elbatt.no,https://www.elbatt.no,https://chatbot.elbatt.no").split(",")
+ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS",
+    "https://elbatt.no,https://www.elbatt.no,https://chatbot.elbatt.no",
+).split(",")
 STATIC_DIR = os.getenv("STATIC_DIR", "/root/elbatt-chatbot/public")
+
 
 # --- Pydantic models ---
 class ChatRequest(BaseModel):
     message: str
 
+
 class VegvesenRequest(BaseModel):
     regnr: str
+
 
 # --- FastAPI app init ---
 app = FastAPI(
@@ -38,11 +44,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # --- Health/ping ---
 @app.get("/api/ping")
 @app.get("/api/health")
 def ping():
     return {"status": "ok"}
+
 
 # --- Chat endpoint ---
 @app.post("/api/chat")
@@ -54,7 +62,7 @@ async def chat(request: ChatRequest):
         if faq:
             log_chat(user_id=user_id, message=request.message, response=faq)
             return {"response": faq}
-        
+
         # 2. Svar fra produktfeed
         treff = finn_produkt(request.message)
         if treff:
@@ -76,7 +84,10 @@ async def chat(request: ChatRequest):
 
     except Exception as e:
         log_chat(user_id=user_id, message=request.message, response=str(e))
-        raise HTTPException(status_code=500, detail=f"Feil i chat-endepunktet: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Feil i chat-endepunktet: {str(e)}"
+        )
+
 
 # --- Vegvesen API ---
 @app.post("/api/vegvesen")
@@ -93,12 +104,13 @@ async def vegvesen_lookup(request: VegvesenRequest):
             f"**Drivstoff:** {felter['drivstoff']}\n"
             f"**Motorkode:** {felter['motorkode']}\n"
             f"**Motorytelse:** {felter['motorytelse_kw']} kW"
-            + (f" ({felter['motorytelse_hk']} hk)" if felter['motorytelse_hk'] else "")
+            + (f" ({felter['motorytelse_hk']} hk)" if felter["motorytelse_hk"] else "")
         )
         return {"response": svar}
     except Exception as e:
         log_chat(user_id="anonym", message=request.regnr, response=str(e))
         raise HTTPException(status_code=500, detail=f"Vegvesen API-feil: {str(e)}")
+
 
 # --- Exception handler for 404 (api) ---
 @app.exception_handler(StarletteHTTPException)
@@ -107,7 +119,9 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
         return JSONResponse(status_code=404, content={"error": "Not found"})
     else:
         from fastapi.exception_handlers import http_exception_handler
+
         return await http_exception_handler(request, exc)
+
 
 # --- Serve static files (public folder) ---
 if os.path.exists(STATIC_DIR):
