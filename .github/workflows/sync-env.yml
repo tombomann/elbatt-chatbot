@@ -1,0 +1,50 @@
+name: Sync .env to server
+
+on:
+  workflow_dispatch:  # Du kan også legge til schedule eller push hvis ønsket
+
+jobs:
+  sync-env:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Lag .env-fil av alle secrets
+      run: |
+        echo "Genererer .env..."
+        rm -f .env
+        touch .env
+        # Legg til alle secrets du ønsker, én per linje
+        echo "GITHUB=${{ secrets.GITHUB }}" >> .env
+        echo "MAC=${{ secrets.MAC }}" >> .env
+        echo "NETLIFY_AUTH_TOKEN=${{ secrets.NETLIFY_AUTH_TOKEN }}" >> .env
+        echo "NETLIFY_SITE_ID=${{ secrets.NETLIFY_SITE_ID }}" >> .env
+        echo "NOTIFY_EMAIL=${{ secrets.NOTIFY_EMAIL }}" >> .env
+        echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
+        echo "PAT=${{ secrets.PAT }}" >> .env
+        echo "PAT_TOKEN=${{ secrets.PAT_TOKEN }}" >> .env
+        echo "SCALEAWAY_HOST=${{ secrets.SCALEAWAY_HOST }}" >> .env
+        echo "SCALEAWAY_SSH_KEY=${{ secrets.SCALEAWAY_SSH_KEY }}" >> .env
+        echo "SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}" >> .env
+        echo "SENTRY_ORG=${{ secrets.SENTRY_ORG }}" >> .env
+        echo "SENTRY_PROJECT=${{ secrets.SENTRY_PROJECT }}" >> .env
+        echo "SLACK_WEBHOOK=${{ secrets.SLACK_WEBHOOK }}" >> .env
+        echo "SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}" >> .env
+        echo "SONAR_ORGANIZATION=${{ secrets.SONAR_ORGANIZATION }}" >> .env
+        echo "SONAR_PROJECT_KEY=${{ secrets.SONAR_PROJECT_KEY }}" >> .env
+        echo "SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}" >> .env
+        echo "SSH_PRIVATE_KEY=${{ secrets.SSH_PRIVATE_KEY }}" >> .env
+        echo "VEGVESEN_API_KEY=${{ secrets.VEGVESEN_API_KEY }}" >> .env
+
+    - name: Sett opp SSH
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.SCALEAWAY_SSH_KEY }}
+
+    - name: Kopier .env til server
+      run: |
+        echo "Kopierer .env til server..."
+        scp -o StrictHostKeyChecking=no .env root@51.15.203.146:/root/elbatt-chatbot/.env
+
