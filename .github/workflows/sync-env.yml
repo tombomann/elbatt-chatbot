@@ -1,14 +1,13 @@
 name: Sync .env til server
 
 on:
-  schedule:
-    - cron: '0 4 * * *'   # Hver dag kl 04:00
   workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * *'   # Kjør daglig kl 04:00
 
 jobs:
   sync-env:
     runs-on: ubuntu-latest
-
     steps:
     - name: Sjekk ut repo
       uses: actions/checkout@v4
@@ -24,7 +23,8 @@ jobs:
         OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
         PAT=${{ secrets.PAT }}
         PAT_TOKEN=${{ secrets.PAT_TOKEN }}
-        SCALEAWAY_HOST=${{ secrets.SCALEAWAY_HOST }}
+        SCALEAWAY_HOST=51.15.203.146
+        SCALEAWAY_SSH_KEY=${{ secrets.SCALEAWAY_SSH_KEY }}
         SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
         SENTRY_ORG=${{ secrets.SENTRY_ORG }}
         SENTRY_PROJECT=${{ secrets.SENTRY_PROJECT }}
@@ -33,15 +33,15 @@ jobs:
         SONAR_ORGANIZATION=${{ secrets.SONAR_ORGANIZATION }}
         SONAR_PROJECT_KEY=${{ secrets.SONAR_PROJECT_KEY }}
         SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}
+        SSH_PRIVATE_KEY=${{ secrets.SSH_PRIVATE_KEY }}
         VEGVESEN_API_KEY=${{ secrets.VEGVESEN_API_KEY }}
         EOF
 
-    - name: Kopier .env til server (via SSH)
-      uses: appleboy/scp-action@v0.1.7
-      with:
-        host: ${{ secrets.SCALEAWAY_HOST }}
+        - name: Restart chatbot-service
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+        host: 51.15.203.146
         username: root
         key: ${{ secrets.SCALEAWAY_SSH_KEY }}
-        source: ".env"
-        target: "/root/elbatt-chatbot/.env"
-        overwrite: true
+        script: |
+          systemctl restart elbatt-chatbot.service
