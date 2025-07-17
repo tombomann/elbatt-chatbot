@@ -11,6 +11,7 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -29,9 +30,9 @@ jobs:
 
       - name: Install Scaleway CLI
         run: |
-          curl -sO https://downloads.scaleway.com/cli/scw-2.24.0-linux-x86_64
-          chmod +x scw-2.24.0-linux-x86_64
-          mv scw-2.24.0-linux-x86_64 /usr/local/bin/scw
+          curl -sSfL https://downloads.scaleway.com/cli/latest/scw-linux-amd64 -o scw
+          chmod +x scw
+          sudo mv scw /usr/local/bin/
 
       - name: Login Scaleway CLI
         run: |
@@ -41,12 +42,8 @@ jobs:
             -o "${{ secrets.SCW_PROJECT_ID }}" \
             -r fr-par
 
-      - name: Redeploy frontend container
+      - name: Redeploy frontend container by ID
         run: |
-          CONTAINER_NAME=elbatt-langflow # <---- Sett dette til eksakt navnet på din Scaleway frontend-container!
-          CONTAINER_ID=$(scw container container list name=$CONTAINER_NAME -o json | jq -r '.[0].id')
-          if [ -z "$CONTAINER_ID" ]; then
-            echo "Fant ikke container med navn $CONTAINER_NAME"
-            exit 1
-          fi
+          CONTAINER_ID=834b7ef2-be09-4906-a3c9-31529af200f7
+          echo "Redeploying container with ID: $CONTAINER_ID"
           scw container container redeploy $CONTAINER_ID
