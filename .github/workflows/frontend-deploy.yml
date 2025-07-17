@@ -1,0 +1,47 @@
+name: Deploy Frontend to Scaleway Serverless
+
+on:
+  push:
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-deploy.yml'
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Scaleway Container Registry
+        run: echo "${{ secrets.SCW_SECRET_KEY }}" | docker login rg.fr-par.scw.cloud -u "${{ secrets.SCW_ACCESS_KEY }}" --password-stdin
+
+      - name: Build frontend Docker image
+        run: docker build -t rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6/frontend:latest ./frontend
+
+      - name: Push Docker image to Scaleway Registry
+        run: docker push rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6/frontend:latest
+
+      - name: Install Scaleway CLI
+        run: |
+          curl -sO https://downloads.scaleway.com/cli/scw-2.24.0-linux-x86_64 && \
+          chmod +x scw-2.24.0-linux-x86_64 && \
+          mv scw-2.24.0-linux-x86_64 /usr/local/bin/scw
+
+      - name: Login Scaleway CLI
+        run: |
+          scw config init \
+            -a "${{ secrets.SCW_ACCESS_KEY }}" \
+            -s "${{ secrets.SCW_SECRET_KEY }}" \
+            -o "${{ secrets.SCW_PROJECT_ID }}" \
+            -r fr-par
+
+      - name: Redeploy Frontend Container
+        run: |
+          # Finn container-ID fra navn (bytt ut med ditt eksakte container-navn)
+          CONTAINER_NAME="elbatt-frontend" # <- endre til ditt faktiske navn
+          CONTAINER_ID=$(scw container container list name=$CONTAINER_NAME -o json | jq -r '.[0].id')
+          # Trigger redeploy
+          scw container container redeploy $CONTAINER_ID
