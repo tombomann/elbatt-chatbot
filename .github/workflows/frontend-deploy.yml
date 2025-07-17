@@ -38,7 +38,7 @@ jobs:
             -o "${{ secrets.SCW_PROJECT_ID }}" \
             -r fr-par
 
-      - name: Redeploy Frontend Container
+      - name: elbatt-langflow
         run: |
           # Finn container-ID fra navn (bytt ut med ditt eksakte container-navn)
           CONTAINER_NAME="elbatt-frontend" # <- endre til ditt faktiske navn
