@@ -11,6 +11,11 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      SCW_PROJECT_ID: ${{ secrets.SCW_PROJECT_ID }}
+      SCW_DEFAULT_REGION: fr-par
 
     steps:
       - name: Checkout code
@@ -55,15 +60,9 @@ jobs:
       - name: Push Docker image to Scaleway Registry
         run: docker push rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6/frontend:latest
 
-      - name: Login Scaleway CLI
-        run: |
-          scw config init \
-            -a "${{ secrets.SCW_ACCESS_KEY }}" \
-            -s "${{ secrets.SCW_SECRET_KEY }}" \
-            -p "${{ secrets.SCW_PROJECT_ID }}" \
-            -r fr-par
+      # Login CLI steget er nå overflødig og kan fjernes
 
       - name: Redeploy frontend container
         run: |
-          CONTAINER_ID="834b7ef2-be09-4906-a3c9-31529af200f7" # <-- Endre om du bruker annen container-ID
+          CONTAINER_ID="834b7ef2-be09-4906-a3c9-31529af200f7" # <-- Endre hvis nødvendig
           scw container container redeploy $CONTAINER_ID
