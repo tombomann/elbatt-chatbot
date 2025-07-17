@@ -1,32 +1,91 @@
-name: Deploy to Scaleway Serverless Containers
+name: Deploy Fullstack til Scaleway Serverless (1 container)
 
 on:
   push:
-    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - '.github/workflows/deploy.yml'
+    branches:
+      - main
 
 jobs:
-  build-push-serverless:
+  build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      SCW_PROJECT_ID: ${{ secrets.SCW_PROJECT_ID }}
+      SCW_DEFAULT_ORGANIZATION_ID: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
+      SCW_DEFAULT_REGION: fr-par
+      REGISTRY_URL: rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6
+      CONTAINER_ID: 834b7ef2-be09-4906-a3c9-31529af200f7
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Scaleway Registry
-        run: echo ${{ secrets.SCW_SECRET_KEY }} | docker login rg.fr-par.scw.cloud -u ${{ secrets.SCW_ACCESS_KEY }} --password-stdin
-
-      - name: Build & push backend image
+      - name: Installer Scaleway CLI (med retry)
         run: |
-          docker build -t rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6/backend:latest ./backend
-          docker push rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6/backend:latest
+          set -e
+          for i in {1..5}; do
+            TAG=$(curl -fsSL https://api.github.com/repos/scaleway/scaleway-cli/releases/latest | grep '"tag_name":' | cut -d'"' -f4)
+            FILE="scaleway-cli_${TAG#v}_linux_amd64"
+            URL="https://github.com/scaleway/scaleway-cli/releases/download/${TAG}/${FILE}"
+            echo "Forsøk $i: Laster ned $URL"
+            if curl -fsSL "$URL" -o scw; then
+              chmod +x scw
+              sudo mv scw /usr/local/bin/scw
+              scw version
+              echo "Scaleway CLI installert OK."
+              break
+            else
+              echo "Nedlasting feilet, prøver igjen om 5 sek..." >&2
+              sleep 5
+            fi
+            if [ $i -eq 5 ]; then
+              echo "Kunne ikke laste ned Scaleway CLI etter flere forsøk!" >&2
+              exit 1
+            fi
+          done
 
-      - name: Build & push frontend image
+      - name: Logg inn i Scaleway Container Registry
+        run: echo "${SCW_SECRET_KEY}" | docker login ${{ env.REGISTRY_URL }} -u "${SCW_ACCESS_KEY}" --password-stdin
+
+      # Bygg og push frontend image (fjern denne hvis du ikke trenger den)
+      - name: Bygg og push frontend Docker image
         run: |
-          docker build -t rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6/frontend:latest ./frontend
-          docker push rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6/frontend:latest
+          docker build -t ${{ env.REGISTRY_URL }}/frontend:latest ./frontend
+          docker push ${{ env.REGISTRY_URL }}/frontend:latest
+
+      # Bygg og push backend image (fjern denne hvis du ikke trenger den)
+      - name: Bygg og push backend Docker image
+        run: |
+          docker build -t ${{ env.REGISTRY_URL }}/backend:latest ./backend
+          docker push ${{ env.REGISTRY_URL }}/backend:latest
+
+      # Deploy container (bruker siste image, typisk backend/main, men tilpass etter behov)
+      - name: Deploy til serverless-container
+        run: scw container container deploy $CONTAINER_ID
+
+      # Oppdater miljøvariabler/secrets på containeren
+      - name: Sett secrets og miljøvariabler i Scaleway-containeren
+        run: |
+          scw container container update $CONTAINER_ID \
+            env.OPENAI_API_KEY="${OPENAI_API_KEY}" \
+            env.VEGVESEN_API_KEY="${VEGVESEN_API_KEY}" \
+            env.LANGFLOW_API_KEY="${LANGFLOW_API_KEY}" \
+            env.SCW_ACCESS_KEY="${SCW_ACCESS_KEY}" \
+            env.SCW_SECRET_KEY="${SCW_SECRET_KEY}" \
+            env.SCW_PROJECT_ID="${SCW_PROJECT_ID}" \
+            env.SCW_DEFAULT_ORGANIZATION_ID="${SCW_DEFAULT_ORGANIZATION_ID}" \
+            env.SCW_DEFAULT_REGION=fr-par
+        env:
+          CONTAINER_ID: ${{ env.CONTAINER_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          VEGVESEN_API_KEY: ${{ secrets.VEGVESEN_API_KEY }}
+          LANGFLOW_API_KEY: ${{ secrets.LANGFLOW_API_KEY }}
+          SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
+          SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+          SCW_PROJECT_ID: ${{ secrets.SCW_PROJECT_ID }}
+          SCW_DEFAULT_ORGANIZATION_ID: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
