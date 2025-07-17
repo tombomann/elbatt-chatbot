@@ -1,85 +1,195 @@
-// --- Messenger-style chatbot widget med kontaktinfo (embed.js) ---
 (function () {
-    // Sett riktig backend-endepunkt:
     const apiEndpoint = "https://chatbot.elbatt.no/api/chat";
 
     // --- Style Injection ---
     const style = document.createElement('style');
     style.innerHTML = `
     .elbot-chat-btn {
-        min-width: 62px; height: 62px; padding: 0 24px 0 12px;
-        border-radius: 32px; background: #0084FF;
+        min-width: 62px;
+        height: 62px;
+        padding: 0 24px 0 12px;
+        border-radius: 32px;
+        background: #fff;
         box-shadow: 0 4px 20px rgba(0,80,220,0.20);
-        display: flex; align-items: center; justify-content: center;
-        border: 3px solid #fff; position: fixed; bottom: 32px; right: 32px;
-        cursor: pointer; z-index: 2147483647; font-weight: bold; color: #fff;
-        font-size: 1.13em; letter-spacing: 0.01em;
-        transition: box-shadow 0.3s, background 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 3px solid #fff;
+        position: fixed;
+        bottom: 32px;
+        right: 32px;
+        cursor: pointer;
+        z-index: 2147483647;
+        font-weight: bold;
+        color: #0072e0;
+        font-size: 1.13em;
+        letter-spacing: 0.01em;
+        transition: box-shadow 0.3s, background 0.2s, color 0.2s;
         animation: elbot-float 1.8s infinite alternate cubic-bezier(0.4,0,0.2,1);
-        user-select: none; gap: 10px;
+        user-select: none;
+        gap: 10px;
+        flex-direction: row;
+        padding-left: 16px;
     }
     .elbot-chat-btn:hover {
         box-shadow: 0 10px 32px rgba(0,80,220,0.25);
         background: #0072e0;
+        color: #fff;
     }
     @keyframes elbot-float {
         from { transform: translateY(0px);}
         to   { transform: translateY(-14px);}
     }
-    .elbot-chat-avatar { width: 34px; height: 34px; transition: transform 0.15s; flex-shrink: 0;}
+    .elbot-chat-avatar {
+        width: 40px;
+        height: 40px;
+        transition: transform 0.15s;
+        flex-shrink: 0;
+        margin-right: 10px;
+        background: #fff;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+        object-fit: contain;
+    }
+    .elbot-chat-btn span {
+        font-size: 14px;
+        color: inherit;
+        font-weight: bold;
+        margin-left: 8px;
+        white-space: nowrap;
+    }
+
+    /* Chat window styles */
     .elbot-chat-window {
-        position: fixed; bottom: 112px; right: 32px; width: 340px; max-width: 94vw;
-        height: 420px; background: #fff; border-radius: 18px; box-shadow: 0 6px 18px rgba(50,70,110,0.25);
-        display: flex; flex-direction: column; overflow: hidden; z-index: 2147483647;
-        opacity: 0; pointer-events: none; transform: translateY(40px) scale(0.98);
-        transition: opacity 0.25s, transform 0.32s;
+        position: fixed;
+        bottom: 110px;
+        right: 32px;
+        width: 320px;
+        max-height: 500px;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+        z-index: 2147483647;
+        font-family: sans-serif;
+        border: 1px solid #d2d8dc;
+        animation: fadeIn 0.15s;
     }
-    .elbot-chat-window.open {
-        opacity: 1; pointer-events: auto; transform: translateY(0) scale(1);
-    }
+    .elbot-chat-window.open { display: flex; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     .elbot-chat-header {
-        background: #0084FF; color: #fff; padding: 18px 20px 14px 20px; font-weight: bold;
-        display: flex; align-items: center; justify-content: space-between;
+        background: #0072e0;
+        color: white;
+        padding: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
+    .elbot-chat-header span { font-weight: bold; font-size: 1.1em; }
     .elbot-chat-close {
-        font-size: 1.3em; cursor: pointer; background: transparent; border: none; color: #fff; padding: 0;
+        background: transparent;
+        border: none;
+        color: white;
+        font-size: 20px;
+        cursor: pointer;
+        padding: 2px 8px;
+        border-radius: 4px;
+        transition: background 0.15s;
     }
+    .elbot-chat-close:hover { background: #005bb5; }
     .elbot-chat-messages {
-        flex: 1; overflow-y: auto; padding: 16px 14px 16px 18px; background: #f8fafb; font-size: 1em;
+        flex: 1;
+        padding: 10px;
+        overflow-y: auto;
+        background: #f7f7f7;
+        min-height: 100px;
     }
-    .elbot-msg { margin-bottom: 14px; display: flex; }
-    .elbot-msg-user { margin-left: auto; background: #e7fcfa; border-radius: 18px 2px 18px 18px; padding: 7px 14px; }
-    .elbot-msg-bot  { margin-right: auto; background: #f1f5ff; border-radius: 2px 18px 18px 18px; padding: 7px 14px; }
     .elbot-chat-input {
-        display: flex; border-top: 1px solid #eee; background: #fff; padding: 11px;
+        display: flex;
+        border-top: 1px solid #ddd;
+        background: #fff;
     }
     .elbot-chat-input input {
-        flex: 1; border: none; outline: none; font-size: 1em; background: transparent; padding: 7px;
+        flex: 1;
+        border: none;
+        padding: 12px;
+        font-size: 15px;
+        outline: none;
+        background: transparent;
     }
     .elbot-chat-input button {
-        background: #0084FF; color: #fff; border: none; border-radius: 18px;
-        padding: 7px 18px; margin-left: 8px; font-size: 1em; cursor: pointer; transition: background 0.2s;
+        background: #0072e0;
+        color: #fff;
+        border: none;
+        padding: 0 20px;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: bold;
+        transition: background 0.15s;
     }
+    .elbot-chat-input button:disabled {
+        opacity: 0.6;
+        cursor: default;
+    }
+    .elbot-msg {
+        margin: 6px 0;
+        padding: 8px 12px;
+        border-radius: 6px;
+        max-width: 80%;
+        word-break: break-word;
+        line-height: 1.5;
+        display: block;
+        clear: both;
+    }
+    .elbot-msg-user {
+        background: #dbefff;
+        align-self: flex-end;
+        margin-left: auto;
+    }
+    .elbot-msg-bot {
+        background: #eeeff5;
+        align-self: flex-start;
+        margin-right: auto;
+    }
+    /* Mobilresponsivitet */
     @media (max-width: 600px) {
-        .elbot-chat-btn { right: 12px; bottom: 14px; padding-right: 14px;}
-        .elbot-chat-window { right: 2vw; bottom: 78px; width: 98vw; height: 65vh; }
+        .elbot-chat-btn {
+            min-width: 46px;
+            height: 46px;
+            padding: 0 10px 0 7px;
+            bottom: 15px;
+            right: 13px;
+            font-size: 0.99em;
+        }
+        .elbot-chat-avatar { width: 28px; height: 28px; }
+        .elbot-chat-btn span { font-size: 12px; }
+        .elbot-chat-window { width: 97vw; right: 1vw; bottom: 70px; }
+    }
+    @media (max-width: 1024px) {
+        .elbot-chat-btn {
+            min-width: 55px;
+            height: 55px;
+            padding: 0 18px 0 10px;
+            font-size: 1.05em;
+        }
+        .elbot-chat-avatar { width: 32px; height: 32px; }
+        .elbot-chat-btn span { font-size: 13px; }
+        .elbot-chat-window { width: 285px; }
     }
     `;
     document.head.appendChild(style);
 
-    // --- Avatar SVG ---
-    const getAvatarSVG = () => `
-      <svg class="elbot-chat-avatar" width="34" height="34" viewBox="0 0 36 36" fill="none">
-        <circle cx="18" cy="18" r="18" fill="#0084FF"/>
-        <path d="M9 23l5.32-8.41c.44-.7 1.4-.77 1.92-.13l2.52 3.09c.28.34.8.37 1.12.07l5.21-4.7c.46-.42 1.18-.05 1.12.56l-1.16 9.71c-.07.63-.74 1.01-1.3.69l-3.38-1.99a1 1 0 0 0-.98-.05l-6.22 3.19c-.53.27-1.17-.09-1.15-.69z" fill="#fff"/>
-      </svg>
-    `;
-
-    // --- Elementer ---
+    // --- Chat button ---
     const chatBtn = document.createElement("div");
     chatBtn.className = "elbot-chat-btn";
-    chatBtn.innerHTML = getAvatarSVG() + '<span style="margin-left:8px;">Chat med oss!</span>';
+    chatBtn.innerHTML = `
+        <img src="/assets/bilskilt.png" alt="Bilskilt" class="elbot-chat-avatar" />
+        <span>Søk på ditt bilnummer</span>
+    `;
 
+    // --- Chat window ---
     const chatWindow = document.createElement("div");
     chatWindow.className = "elbot-chat-window";
     chatWindow.innerHTML = `
@@ -88,8 +198,8 @@
             <button class="elbot-chat-close" title="Lukk">&times;</button>
         </div>
         <div class="elbot-chat-messages"></div>
-        <form class="elbot-chat-input">
-            <input type="text" placeholder="Skriv en melding..." autocomplete="off" />
+        <form class="elbot-chat-input" autocomplete="off" spellcheck="false">
+            <input type="text" placeholder="Skriv et bilnummer..." autocomplete="off" />
             <button type="submit">Send</button>
         </form>
     `;
@@ -97,81 +207,60 @@
     document.body.appendChild(chatBtn);
     document.body.appendChild(chatWindow);
 
-    const avatar = chatBtn.querySelector(".elbot-chat-avatar");
     const closeBtn = chatWindow.querySelector(".elbot-chat-close");
     const messagesEl = chatWindow.querySelector(".elbot-chat-messages");
     const inputForm = chatWindow.querySelector(".elbot-chat-input");
     const inputField = chatWindow.querySelector("input");
+    const submitBtn = inputForm.querySelector("button");
 
-    // --- Animér avatar mot musepeker/touch ---
-    let animFrame, pointer = {x: 0, y: 0};
-    function animateAvatar() {
-        let rect = chatBtn.getBoundingClientRect();
-        let cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
-        let dx = pointer.x - cx, dy = pointer.y - cy;
-        let ang = Math.atan2(dy, dx) * 30 / Math.PI;
-        avatar.style.transform = `rotate(${ang}deg)`;
-    }
-    document.addEventListener('mousemove', (e) => {
-        pointer.x = e.clientX; pointer.y = e.clientY;
-        if (animFrame) cancelAnimationFrame(animFrame);
-        animFrame = requestAnimationFrame(animateAvatar);
-    });
-    document.addEventListener('touchmove', (e) => {
-        if(e.touches && e.touches.length) {
-            pointer.x = e.touches[0].clientX;
-            pointer.y = e.touches[0].clientY;
-            if (animFrame) cancelAnimationFrame(animFrame);
-            animFrame = requestAnimationFrame(animateAvatar);
-        }
-    }, {passive:true});
-
-    // --- Chat window open/close ---
+    // --- Open/close chat window ---
     let open = false;
     chatBtn.onclick = () => {
         open = !open;
         chatWindow.classList.toggle("open", open);
-        if (open) setTimeout(() => inputField.focus(), 200);
+        if (open) setTimeout(() => { inputField.focus(); }, 180);
     };
     closeBtn.onclick = () => {
         open = false;
         chatWindow.classList.remove("open");
     };
 
-    // --- Message rendering ---
-    function addMsg(txt, who) {
-        let el = document.createElement('div');
-        el.className = 'elbot-msg elbot-msg-' + who;
-        if (who === 'bot' && /<\/?[a-z][\s\S]*>/i.test(txt)) {
-            el.innerHTML = txt;
-        } else {
-            el.textContent = txt;
-        }
-        messagesEl.appendChild(el);
-        messagesEl.scrollTop = messagesEl.scrollHeight;
-    }
-
-    // --- Send message to API ---
+    // --- Message sending ---
     inputForm.onsubmit = async (e) => {
         e.preventDefault();
         const msg = inputField.value.trim();
         if (!msg) return;
         addMsg(msg, 'user');
         inputField.value = "";
-        addMsg("...", 'bot');
+        inputField.focus();
+        submitBtn.disabled = true;
+        const loadingEl = addMsg("...", 'bot');
         try {
             const res = await fetch(apiEndpoint, {
                 method: "POST",
                 headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({message: msg})
+                body: JSON.stringify({message: msg}),
+                credentials: "include"
             });
             let data = await res.json();
-            addMsg(data.response || "Bot svarer ikke.", "bot");
+            let responseText = data?.response?.toString().trim() || "Bot svarer ikke.";
+            loadingEl.textContent = responseText;
         } catch (err) {
-            addMsg("Kunne ikke koble til server 😢", "bot");
+            loadingEl.textContent = "Kunne ikke koble til server 😢";
         }
+        submitBtn.disabled = false;
     };
 
-    // --- Velkomstmelding ---
+    // --- Add message to chat ---
+    function addMsg(txt, who) {
+        let el = document.createElement('div');
+        el.className = 'elbot-msg elbot-msg-' + who;
+        el.textContent = txt;
+        messagesEl.appendChild(el);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        return el;
+    }
+
+    // --- Preload welcome message ---
     addMsg("Hei! Hvordan kan jeg hjelpe deg i dag? 🤖", "bot");
 })();
