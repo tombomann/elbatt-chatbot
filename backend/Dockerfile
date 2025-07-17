@@ -1,19 +1,14 @@
-FROM python:3.10-slim
+FROM python:3.12-slim
 
-# Sett arbeidskatalog
 WORKDIR /app
 
-# Kopier requirements først for å cache dependencies
+# Kopier kun requirements først for cache
 COPY requirements.txt .
 
-# Installer dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Kopier resten av app-koden
+# Kopier all backend-kode
 COPY . .
 
-# Eksponer porten som uvicorn bruker
-EXPOSE 8000
-
-# Start uvicorn-serveren ved container-start
+# Start FastAPI med uvicorn
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
