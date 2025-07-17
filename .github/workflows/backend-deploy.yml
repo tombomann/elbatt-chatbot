@@ -1,0 +1,62 @@
+name: Deploy Backend to Scaleway Serverless
+
+on:
+  push:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-deploy.yml'
+    branches:
+      - main
+
+jobs:
+  build-and-deploy-backend:
+    runs-on: ubuntu-latest
+    env:
+      SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      SCW_PROJECT_ID: ${{ secrets.SCW_PROJECT_ID }}
+      SCW_DEFAULT_REGION: fr-par
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install jq (JSON CLI)
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Remove old scw if exists
+        run: sudo rm -f /usr/local/bin/scw || true
+
+      - name: Install Scaleway CLI (always latest, with retry)
+        run: |
+          set -e
+          for i in {1..5}; do
+            TAG=$(curl -fsSL https://api.github.com/repos/scaleway/scaleway-cli/releases/latest | grep '"tag_name":' | cut -d'"' -f4)
+            FILE="scaleway-cli_${TAG#v}_linux_amd64"
+            URL="https://github.com/scaleway/scaleway-cli/releases/download/${TAG}/${FILE}"
+            if curl -fsSL "$URL" -o scw; then
+              chmod +x scw
+              sudo mv scw /usr/local/bin/scw
+              scw version
+              break
+            else
+              sleep 5
+            fi
+            if [ $i -eq 5 ]; then
+              exit 1
+            fi
+          done
+
+      - name: Log in to Scaleway Container Registry
+        run: echo "${{ secrets.SCW_SECRET_KEY }}" | docker login rg.fr-par.scw.cloud -u "${{ secrets.SCW_ACCESS_KEY }}" --password-stdin
+
+      - name: Build backend Docker image
+        run: docker build -t rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6/backend:latest ./backend
+
+      - name: Push backend Docker image
+        run: docker push rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6/backend:latest
+
+      - name: Deploy backend container
+        run: |
+          CONTAINER_ID="<<BACKEND_CONTAINER_ID>>"  # ← Sett inn din backend-container-ID her!
+          scw container container deploy $CONTAINER_ID
