@@ -65,4 +65,4 @@ jobs:
       - name: Redeploy frontend container
         run: |
           CONTAINER_ID="834b7ef2-be09-4906-a3c9-31529af200f7" # <-- Endre hvis nødvendig
-          scw container container redeploy $CONTAINER_ID
+          scw serverless container redeploy $CONTAINER_ID
