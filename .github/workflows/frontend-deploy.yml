@@ -1,10 +1,51 @@
-- name: Remove old scw if exists
-  run: sudo rm -f /usr/local/bin/scw || true
+name: Deploy Frontend to Scaleway Serverless
 
-- name: Install Scaleway CLI
-  run: |
-    curl -fsSL https://github.com/scaleway/scaleway-cli/releases/latest/download/scaleway-cli_linux_amd64 -o scw
-    chmod +x scw
-    file scw
-    sudo mv scw /usr/local/bin/scw
-    scw -v
+on:
+  push:
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-deploy.yml'
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Remove old scw if exists
+        run: sudo rm -f /usr/local/bin/scw || true
+
+      - name: Install jq (JSON CLI)
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Install Scaleway CLI
+        run: |
+          curl -fsSL https://github.com/scaleway/scaleway-cli/releases/latest/download/scaleway-cli_linux_amd64 -o scw
+          chmod +x scw
+          sudo mv scw /usr/local/bin/scw
+          scw -v
+
+      - name: Log in to Scaleway Container Registry
+        run: echo "${{ secrets.SCW_SECRET_KEY }}" | docker login rg.fr-par.scw.cloud -u "${{ secrets.SCW_ACCESS_KEY }}" --password-stdin
+
+      - name: Build frontend Docker image
+        run: docker build -t rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6/frontend:latest ./frontend
+
+      - name: Push Docker image to Scaleway Registry
+        run: docker push rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6/frontend:latest
+
+      - name: Login Scaleway CLI
+        run: |
+          scw config init \
+            -a "${{ secrets.SCW_ACCESS_KEY }}" \
+            -s "${{ secrets.SCW_SECRET_KEY }}" \
+            -o "${{ secrets.SCW_PROJECT_ID }}" \
+            -r fr-par
+
+      - name: Redeploy frontend container
+        run: |
+          CONTAINER_ID="834b7ef2-be09-4906-a3c9-31529af200f7"
+          scw container container redeploy $CONTAINER_ID
