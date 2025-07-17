@@ -12,9 +12,20 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
+    container:
+      image: scaleway/cli:latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Install Docker (for building images inside container)
+        run: |
+          apt-get update && \
+          apt-get install -y docker.io
+
+      - name: Install jq (for JSON parsing)
+        run: apt-get install -y jq
 
       - name: Log in to Scaleway Container Registry
         run: echo "${{ secrets.SCW_SECRET_KEY }}" | docker login rg.fr-par.scw.cloud -u "${{ secrets.SCW_ACCESS_KEY }}" --password-stdin
@@ -25,15 +36,6 @@ jobs:
       - name: Push Docker image to Scaleway Registry
         run: docker push rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6/frontend:latest
 
-      - name: Install jq (JSON CLI)
-        run: sudo apt-get update && sudo apt-get install -y jq
-
-      - name: Install Scaleway CLI
-        run: |
-          curl -sSfL https://downloads.scaleway.com/cli/latest/scw-linux-amd64 -o scw
-          chmod +x scw
-          sudo mv scw /usr/local/bin/
-
       - name: Login Scaleway CLI
         run: |
           scw config init \
@@ -42,8 +44,7 @@ jobs:
             -o "${{ secrets.SCW_PROJECT_ID }}" \
             -r fr-par
 
-      - name: Redeploy frontend container by ID
+      - name: Redeploy frontend container
         run: |
-          CONTAINER_ID=834b7ef2-be09-4906-a3c9-31529af200f7
-          echo "Redeploying container with ID: $CONTAINER_ID"
+          CONTAINER_ID="834b7ef2-be09-4906-a3c9-31529af200f7"
           scw container container redeploy $CONTAINER_ID
