@@ -11,15 +11,16 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Remove old scw if exists
-        run: sudo rm -f /usr/local/bin/scw || true
-
       - name: Install jq (JSON CLI)
         run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Remove old scw if exists
+        run: sudo rm -f /usr/local/bin/scw || true
 
       - name: Install Scaleway CLI
         run: |
@@ -47,5 +48,5 @@ jobs:
 
       - name: Redeploy frontend container
         run: |
-          CONTAINER_ID="834b7ef2-be09-4906-a3c9-31529af200f7"
+          CONTAINER_ID="834b7ef2-be09-4906-a3c9-31529af200f7" # <-- sett til din container-ID om det endres
           scw container container redeploy $CONTAINER_ID
