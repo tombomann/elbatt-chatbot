@@ -13,15 +13,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Sjekk ut kode fra repo
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 2. Installer jq for å håndtere JSON-uttrekk fra CLI
       - name: Install jq (JSON CLI)
         run: sudo apt-get update && sudo apt-get install -y jq
 
+      # 3. Rydd opp eventuell gammel CLI
       - name: Remove old scw if exists
         run: sudo rm -f /usr/local/bin/scw || true
 
+      # 4. Installer Siste versjon av Scaleway CLI, med retry for robusthet
       - name: Install Scaleway CLI (always latest, with retry)
         run: |
           set -e
@@ -46,15 +50,19 @@ jobs:
             fi
           done
 
+      # 5. Logg inn i Scaleway Container Registry
       - name: Log in to Scaleway Container Registry
         run: echo "${{ secrets.SCW_SECRET_KEY }}" | docker login rg.fr-par.scw.cloud -u "${{ secrets.SCW_ACCESS_KEY }}" --password-stdin
 
+      # 6. Bygg frontend Docker-image
       - name: Build frontend Docker image
         run: docker build -t rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6/frontend:latest ./frontend
 
+      # 7. Push Docker-image til Scaleway Registry
       - name: Push Docker image to Scaleway Registry
         run: docker push rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6/frontend:latest
 
+      # 8. Logg inn i Scaleway CLI
       - name: Login Scaleway CLI
         run: |
           scw config init \
@@ -63,7 +71,8 @@ jobs:
             -o "${{ secrets.SCW_PROJECT_ID }}" \
             -r fr-par
 
+      # 9. Re-deploy container på Scaleway (bruk din container-ID)
       - name: Redeploy frontend container
         run: |
-          CONTAINER_ID="834b7ef2-be09-4906-a3c9-31529af200f7" # <-- Endre om du bruker ny container
+          CONTAINER_ID="834b7ef2-be09-4906-a3c9-31529af200f7" # <-- Endre hvis nødvendig!
           scw container container redeploy $CONTAINER_ID
