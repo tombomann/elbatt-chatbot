@@ -27,29 +27,12 @@ jobs:
       - name: Remove old scw if exists
         run: sudo rm -f /usr/local/bin/scw || true
 
-      - name: Install Scaleway CLI (always latest, with retry)
+      - name: Install Scaleway CLI (v2.41.0, stabil for CI)
         run: |
-          set -e
-          for i in {1..5}; do
-            TAG=$(curl -fsSL https://api.github.com/repos/scaleway/scaleway-cli/releases/latest | grep '"tag_name":' | cut -d'"' -f4)
-            FILE="scaleway-cli_${TAG#v}_linux_amd64"
-            URL="https://github.com/scaleway/scaleway-cli/releases/download/${TAG}/${FILE}"
-            echo "Forsøk $i: Laster ned $URL"
-            if curl -fsSL "$URL" -o scw; then
-              chmod +x scw
-              sudo mv scw /usr/local/bin/scw
-              scw version
-              echo "Scaleway CLI installert OK."
-              break
-            else
-              echo "Nedlasting feilet, prøver igjen om 5 sekunder..." >&2
-              sleep 5
-            fi
-            if [ $i -eq 5 ]; then
-              echo "Kunne ikke laste ned Scaleway CLI etter flere forsøk!" >&2
-              exit 1
-            fi
-          done
+          curl -fsSL "https://github.com/scaleway/scaleway-cli/releases/download/v2.41.0/scaleway-cli_2.41.0_linux_amd64" -o scw
+          chmod +x scw
+          sudo mv scw /usr/local/bin/scw
+          scw version
 
       - name: Log in to Scaleway Container Registry
         run: echo "${{ secrets.SCW_SECRET_KEY }}" | docker login rg.fr-par.scw.cloud -u "${{ secrets.SCW_ACCESS_KEY }}" --password-stdin
@@ -59,8 +42,6 @@ jobs:
 
       - name: Push Docker image to Scaleway Registry
         run: docker push rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6/frontend:latest
-
-      # Login CLI steget er nå overflødig og kan fjernes
 
       - name: Redeploy frontend container
         run: |
