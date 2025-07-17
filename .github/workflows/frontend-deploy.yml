@@ -22,12 +22,29 @@ jobs:
       - name: Remove old scw if exists
         run: sudo rm -f /usr/local/bin/scw || true
 
-      - name: Install Scaleway CLI
+      - name: Install Scaleway CLI (always latest, with retry)
         run: |
-          curl -fsSL https://github.com/scaleway/scaleway-cli/releases/latest/download/scaleway-cli_linux_amd64 -o scw
-          chmod +x scw
-          sudo mv scw /usr/local/bin/scw
-          scw -v
+          set -e
+          for i in {1..5}; do
+            TAG=$(curl -fsSL https://api.github.com/repos/scaleway/scaleway-cli/releases/latest | grep '"tag_name":' | cut -d'"' -f4)
+            FILE="scaleway-cli_${TAG#v}_linux_amd64"
+            URL="https://github.com/scaleway/scaleway-cli/releases/download/${TAG}/${FILE}"
+            echo "Forsøk $i: Laster ned $URL"
+            if curl -fsSL "$URL" -o scw; then
+              chmod +x scw
+              sudo mv scw /usr/local/bin/scw
+              scw -v
+              echo "Scaleway CLI installert OK."
+              break
+            else
+              echo "Nedlasting feilet, prøver igjen om 5 sekunder..." >&2
+              sleep 5
+            fi
+            if [ $i -eq 5 ]; then
+              echo "Kunne ikke laste ned Scaleway CLI etter flere forsøk!" >&2
+              exit 1
+            fi
+          done
 
       - name: Log in to Scaleway Container Registry
         run: echo "${{ secrets.SCW_SECRET_KEY }}" | docker login rg.fr-par.scw.cloud -u "${{ secrets.SCW_ACCESS_KEY }}" --password-stdin
@@ -48,5 +65,5 @@ jobs:
 
       - name: Redeploy frontend container
         run: |
-          CONTAINER_ID="834b7ef2-be09-4906-a3c9-31529af200f7" # <-- sett til din container-ID om det endres
+          CONTAINER_ID="834b7ef2-be09-4906-a3c9-31529af200f7" # <-- Endre om du bruker ny container
           scw container container redeploy $CONTAINER_ID
