@@ -26,7 +26,10 @@ jobs:
           sudo mv scw /usr/local/bin/scw
 
       - name: Log in to Scaleway Container Registry
-        run: echo "${{ secrets.SCW_SECRET_KEY }}" | docker login rg.fr-par.scw.cloud -u "${{ secrets.SCW_ACCESS_KEY }}" --password-stdin
+        env:
+          SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+          SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
+        run: echo "$SCW_SECRET_KEY" | docker login rg.fr-par.scw.cloud -u "$SCW_ACCESS_KEY" --password-stdin
 
       - name: Build frontend Docker image
         run: docker build -t rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6/frontend:latest ./frontend
@@ -35,11 +38,15 @@ jobs:
         run: docker push rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6/frontend:latest
 
       - name: Login Scaleway CLI
+        env:
+          SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
+          SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+          SCW_PROJECT_ID: ${{ secrets.SCW_PROJECT_ID }}
         run: |
           scw config init \
-            -a "${{ secrets.SCW_ACCESS_KEY }}" \
-            -s "${{ secrets.SCW_SECRET_KEY }}" \
-            -o "${{ secrets.SCW_PROJECT_ID }}" \
+            -a "$SCW_ACCESS_KEY" \
+            -s "$SCW_SECRET_KEY" \
+            -o "$SCW_PROJECT_ID" \
             -r fr-par
 
       - name: Redeploy frontend container
