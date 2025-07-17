@@ -60,10 +60,10 @@ jobs:
           scw config init \
             -a "${{ secrets.SCW_ACCESS_KEY }}" \
             -s "${{ secrets.SCW_SECRET_KEY }}" \
-            -o "${{ secrets.SCW_PROJECT_ID }}" \
+            -p "${{ secrets.SCW_PROJECT_ID }}" \
             -r fr-par
 
       - name: Redeploy frontend container
         run: |
-          CONTAINER_ID="834b7ef2-be09-4906-a3c9-31529af200f7" # <-- Endre hvis nødvendig!
+          CONTAINER_ID="834b7ef2-be09-4906-a3c9-31529af200f7" # <-- Endre om du bruker annen container-ID
           scw container container redeploy $CONTAINER_ID
