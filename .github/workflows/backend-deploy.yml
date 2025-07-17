@@ -1,62 +1,97 @@
-name: Deploy Backend to Scaleway Serverless
+name: Deploy Fullstack to Scaleway Serverless
 
 on:
   push:
     paths:
+      - 'frontend/**'
       - 'backend/**'
-      - '.github/workflows/backend-deploy.yml'
+      - '.github/workflows/deploy-all.yml'
     branches:
       - main
 
 jobs:
-  build-and-deploy-backend:
+  build-and-deploy:
     runs-on: ubuntu-latest
     env:
       SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
       SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
       SCW_PROJECT_ID: ${{ secrets.SCW_PROJECT_ID }}
+      SCW_DEFAULT_ORGANIZATION_ID: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
       SCW_DEFAULT_REGION: fr-par
+      REGISTRY_URL: rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6
+      CONTAINER_ID: 834b7ef2-be09-4906-a3c9-31529af200f7 # TODO: Sett til din container-ID!
+
+      # Applikasjons-secrets (videresendes som env til container)
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      VEGVESEN_API_KEY: ${{ secrets.VEGVESEN_API_KEY }}
+      LANGFLOW_API_KEY: ${{ secrets.LANGFLOW_API_KEY }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      # legg til flere ved behov...
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install jq (JSON CLI)
-        run: sudo apt-get update && sudo apt-get install -y jq
-
-      - name: Remove old scw if exists
-        run: sudo rm -f /usr/local/bin/scw || true
-
-      - name: Install Scaleway CLI (always latest, with retry)
+      - name: Install Scaleway CLI (with retry)
         run: |
           set -e
           for i in {1..5}; do
             TAG=$(curl -fsSL https://api.github.com/repos/scaleway/scaleway-cli/releases/latest | grep '"tag_name":' | cut -d'"' -f4)
             FILE="scaleway-cli_${TAG#v}_linux_amd64"
             URL="https://github.com/scaleway/scaleway-cli/releases/download/${TAG}/${FILE}"
+            echo "Forsøk $i: Laster ned $URL"
             if curl -fsSL "$URL" -o scw; then
               chmod +x scw
               sudo mv scw /usr/local/bin/scw
               scw version
+              echo "Scaleway CLI installert OK."
               break
             else
+              echo "Nedlasting feilet, prøver igjen om 5 sek..." >&2
               sleep 5
             fi
             if [ $i -eq 5 ]; then
+              echo "Kunne ikke laste ned Scaleway CLI etter flere forsøk!" >&2
               exit 1
             fi
           done
 
       - name: Log in to Scaleway Container Registry
-        run: echo "${{ secrets.SCW_SECRET_KEY }}" | docker login rg.fr-par.scw.cloud -u "${{ secrets.SCW_ACCESS_KEY }}" --password-stdin
+        run: echo "${SCW_SECRET_KEY}" | docker login ${{ env.REGISTRY_URL }} -u "${SCW_ACCESS_KEY}" --password-stdin
 
+      # --- Bygg og push frontend ---
+      - name: Build frontend Docker image
+        run: docker build -t ${{ env.REGISTRY_URL }}/frontend:latest ./frontend
+
+      - name: Push frontend Docker image
+        run: docker push ${{ env.REGISTRY_URL }}/frontend:latest
+
+      # --- Bygg og push backend ---
       - name: Build backend Docker image
-        run: docker build -t rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6/backend:latest ./backend
+        run: docker build -t ${{ env.REGISTRY_URL }}/backend:latest ./backend
 
       - name: Push backend Docker image
-        run: docker push rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6/backend:latest
+        run: docker push ${{ env.REGISTRY_URL }}/backend:latest
 
-      - name: Deploy backend container
+      # --- Oppdater secrets/env i containeren på Scaleway ---
+      - name: Oppdater secrets i Scaleway container (miljøvariabler)
         run: |
-          CONTAINER_ID="<<BACKEND_CONTAINER_ID>>"  # ← Sett inn din backend-container-ID her!
-          scw container container deploy $CONTAINER_ID
+          scw container container update $CONTAINER_ID \
+            --env OPENAI_API_KEY=${OPENAI_API_KEY} \
+            --env VEGVESEN_API_KEY=${VEGVESEN_API_KEY} \
+            --env LANGFLOW_API_KEY=${LANGFLOW_API_KEY} \
+            --env SMTP_PASSWORD=${SMTP_PASSWORD} \
+            --env SONAR_TOKEN=${SONAR_TOKEN} \
+            --env SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
+            # legg til flere --env <KEY>=<VALUE> etter behov
+
+      # --- Deploy container (henter siste image(r) fra registry) ---
+      - name: Deploy container
+        run: scw container container deploy $CONTAINER_ID
+
+      # Ekstra: Print all env for debug (kan fjernes i prod)
+      # - name: Debug env
+      #   run: printenv
+
