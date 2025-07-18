@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 
 # Sørg for at .env lastes inn
-load_dotenv('/root/elbatt-chatbot/.env')
+load_dotenv("/root/elbatt-chatbot/.env")
 
 api_key = os.getenv("OPENAI_API_KEY")
 print("DEBUG: OPENAI_API_KEY =", api_key)

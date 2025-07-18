@@ -5,6 +5,7 @@ import asyncio
 
 load_dotenv("/root/elbatt-chatbot/.env")
 
+
 async def test_openai():
     api_key = os.getenv("OPENAI_API_KEY")
     print("Using API key:", api_key)
@@ -18,5 +19,6 @@ async def test_openai():
         print("OpenAI response:", response.choices[0].message.content)
     except Exception as e:
         print("OpenAI API error:", e)
+
 
 asyncio.run(test_openai())
