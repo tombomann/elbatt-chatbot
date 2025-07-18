@@ -1,0 +1,21 @@
+name: Healthcheck Chatbot
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # hver 5. minutt
+  workflow_dispatch:
+
+jobs:
+  check-chatbot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check /ping endpoint
+        run: |
+          response=$(curl -s -w "%{http_code}" -o output.txt https://chatbot.elbatt.no/ping || echo 000)
+          body=$(cat output.txt)
+          echo "Response: $body"
+          if [ "$response" != "200" ] || ! echo "$body" | grep -q '"status": *"ok"'; then
+            echo "❌ Chatbot helsesjekk feilet!"
+            exit 1
+          fi
+          echo "✅ Chatbot helsesjekk OK"
