@@ -1,16 +1,15 @@
 name: Deploy Fullstack to Scaleway Serverless
 
 on:
-  push:
-    paths:
-      - 'frontend/**'
-      - 'backend/**'
-      - '.github/workflows/deploy-all.yml'
-    branches:
-      - main
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types:
+      - completed
 
 jobs:
   build-and-deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     env:
       SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
