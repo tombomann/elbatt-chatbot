@@ -1,68 +1,84 @@
-name: AI AutoFix OG PR
+name: AI Autofix (Full Auto)
 
 on:
   workflow_run:
-    workflows: ["CI"]
+    workflows: ["Deploy Fullstack to Scaleway Serverless"] # Navnet på din deploy/test workflow
     types:
       - completed
-    branches: [main]
 
 jobs:
-  ai-fix-and-pr:
+  ai-autofix:
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
     steps:
-      - name: Sjekk ut kode
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Sett opp Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Installer frontend dependencies
+      - name: Last ned workflow-feillogg (kun siste run)
         run: |
-          cd frontend
-          npm install
+          gh run list --workflow="${{ github.event.workflow_run.workflow_id }}" --json databaseId | jq .[0].databaseId > run_id.txt
+          gh run view $(cat run_id.txt) --log > error.log || true
 
-      - name: Kjør tester
+      - name: Lag context.txt med repo-status og CI-problemer
         run: |
-          cd frontend
-          npm run test || true
+          echo "
+Repository summary:
+- Backend: FastAPI, .env, secrets for OpenAI, Vegvesen, Langflow, m.m.
+- Frontend: React, Dockerized build
+- CI: deploy-all.yml bygger & deployer begge images til Scaleway, secrets fra GitHub
+- Backup: backup_to_s3.py/restore_from_s3.py
+- Gaps: Ikke full CI-test, SonarCloud, backup-automation, og dokumentasjon
+Se full repo-status i README.md og context.txt.
+---
+" > context.txt
+          cat error.log >> context.txt
 
-      - name: AI-fix script (placeholder)
+      - name: Installer OpenAI Python SDK
+        run: pip install openai
+
+      - name: Kjør AI autofix
         run: |
-          echo "// AI-autofix script kjøres her" > README_AI_FIX.md
-          echo "🚧 Automatisk fiks simulert."
+          python3 <<EOF
+import os
+import openai
 
-      - name: Commit endringer hvis noen filer er rettet
+with open("context.txt") as f:
+    prompt = f"""
+Du er en kodeassistent som kan patche fullstack-prosjekter direkte. Feil og status:
+---
+{f.read()}
+---
+Lag en unified diff-patch som fikser feilen. Kun patch, ingen forklaring.
+"""
+openai.api_key = os.getenv("OPENAI_API_KEY")
+resp = openai.ChatCompletion.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": prompt}],
+    max_tokens=2048,
+    temperature=0,
+)
+out = resp.choices[0].message.content.strip()
+print(out)
+with open("codex_patch.diff", "w") as patch:
+    patch.write(out)
+EOF
+
+      - name: Apply patch fra AI (full auto)
         run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add .
-          git diff --cached --quiet || git commit -m "[AI Fix] Automatisk commit"
+          if [ -s codex_patch.diff ]; then
+            git apply codex_patch.diff || (echo "Patch feilet"; exit 1)
+            git config --global user.name "ai-autofix"
+            git config --global user.email "ai-bot@elbatt.no"
+            git add -A
+            git commit -m "AI autofix (auto-patch via Codex/ChatGPT)"
+            git push
+          else
+            echo "Ingen AI-patch generert."
+          fi
 
-      - name: Sett remote-URL med token (viktig!)
-        run: |
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-
-      - name: Lag automatisk PR til main
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ai-auto-fix
-          title: AI AutoFix: Automatisk PR
-          body: Denne PR-en er laget automatisk etter AI-feilretting.
-          delete-branch: true
-          base: main
-          commit-message: "[create-pull-request] automated change"
-          committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
-          author: tombomann <206108200+tombomann@users.noreply.github.com>
-          signoff: false
-          draft: false
+      - name: Notify om AI-autofix feiler
+        if: failure()
+        run: echo "AI autofix kunne ikke reparere automatisk – sjekk context.txt og codex_patch.diff."
