@@ -1,7 +1,10 @@
 import os
 import httpx
 
-VEGVESEN_API_URL = "https://akfell-datautlevering.atlas.vegvesen.no/enkeltoppslag/kjoretoydata"
+VEGVESEN_API_URL = (
+    "https://akfell-datautlevering.atlas.vegvesen.no/enkeltoppslag/kjoretoydata"
+)
+
 
 async def lookup_vehicle(regnr):
     api_key = os.getenv("VEGVESEN_API_KEY")
@@ -15,6 +18,7 @@ async def lookup_vehicle(regnr):
             return {"error": f"Vegvesen-API-feil: {r.status_code} {r.text}"}
         return r.json()
 
+
 def format_vegvesen_svar(data):
     try:
         if not data or not data.get("kjoretoydataListe"):
@@ -24,10 +28,18 @@ def format_vegvesen_svar(data):
         registrert = d.get("forstegangsregistrering", {}).get(
             "registrertForstegangNorgeDato", "-"
         )
-        merke = d["godkjenning"]["tekniskGodkjenning"]["tekniskeData"]["generelt"]["merke"][0]["merke"]
-        modell = d["godkjenning"]["tekniskGodkjenning"]["tekniskeData"]["generelt"]["handelsbetegnelse"][0]
-        drivstoff = d["godkjenning"]["tekniskGodkjenning"]["tekniskeData"]["miljodata"]["miljoOgdrivstoffGruppe"][0]["drivstoffKodeMiljodata"]["kodeNavn"]
-        motor = d["godkjenning"]["tekniskGodkjenning"]["tekniskeData"]["motorOgDrivverk"]["motor"][0]
+        merke = d["godkjenning"]["tekniskGodkjenning"]["tekniskeData"]["generelt"][
+            "merke"
+        ][0]["merke"]
+        modell = d["godkjenning"]["tekniskGodkjenning"]["tekniskeData"]["generelt"][
+            "handelsbetegnelse"
+        ][0]
+        drivstoff = d["godkjenning"]["tekniskGodkjenning"]["tekniskeData"]["miljodata"][
+            "miljoOgdrivstoffGruppe"
+        ][0]["drivstoffKodeMiljodata"]["kodeNavn"]
+        motor = d["godkjenning"]["tekniskGodkjenning"]["tekniskeData"][
+            "motorOgDrivverk"
+        ]["motor"][0]
         motorkode = motor.get("motorKode", "-")
         effekt_kw = motor.get("drivstoff", [{}])[0].get("maksNettoEffekt", None)
         effekt_txt = f"{effekt_kw} kW" if effekt_kw else "-"
@@ -44,9 +56,11 @@ def format_vegvesen_svar(data):
     except Exception as e:
         return f"Kunne ikke hente kjøretøydata: {str(e)}"
 
+
 # CLI-test
 if __name__ == "__main__":
     import asyncio
+
     regnr = input("Skriv inn registreringsnummer: ")
     data = asyncio.run(lookup_vehicle(regnr))
     print(format_vegvesen_svar(data))

@@ -26,20 +26,25 @@ ALLOWED_ORIGINS = os.getenv(
 STATIC_DIR = os.getenv("STATIC_DIR", "/app/public")
 ASSETS_DIR = os.getenv("ASSETS_DIR", "/app/assets")
 
+
 # --- Pydantic-modeller ---
 class ChatRequest(BaseModel):
     message: str
 
+
 class VegvesenRequest(BaseModel):
     regnr: str
 
+
 class VartaRequest(BaseModel):
     sporring: str
+
 
 # --- Gjenkjenning av norsk bilnummer ---
 def is_license_plate(msg):
     msg = msg.strip().upper().replace(" ", "")
     return bool(re.fullmatch(r"[A-ZÆØÅ]{2}\d{5}", msg))
+
 
 # --- FastAPI-app ---
 app = FastAPI(
@@ -57,11 +62,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # --- Health/ping ---
 @app.get("/api/ping")
 @app.get("/api/health")
 def ping():
     return {"status": "ok"}
+
 
 # --- Chat endpoint ---
 @app.post("/api/chat")
@@ -96,7 +103,10 @@ async def chat(request: ChatRequest):
         return {"response": response}
     except Exception as e:
         log_chat(user_id=user_id, message=request.message, response=str(e))
-        raise HTTPException(status_code=500, detail=f"Feil i chat-endepunktet: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Feil i chat-endepunktet: {str(e)}"
+        )
+
 
 # --- Vegvesen API direkte ---
 @app.post("/api/vegvesen")
@@ -110,6 +120,7 @@ async def vegvesen_lookup(request: VegvesenRequest):
         log_chat(user_id="anonym", message=request.regnr, response=str(e))
         raise HTTPException(status_code=500, detail=f"Vegvesen API-feil: {str(e)}")
 
+
 # --- Varta scraping API ---
 @app.post("/api/varta")
 async def varta_api(request: VartaRequest):
@@ -121,6 +132,7 @@ async def varta_api(request: VartaRequest):
         log_chat(user_id="anonym", message=request.sporring, response=str(e))
         raise HTTPException(status_code=500, detail=f"Varta API-feil: {str(e)}")
 
+
 # --- OpenAI API direkte ---
 @app.post("/api/openai")
 async def openai_api(request: ChatRequest):
@@ -130,6 +142,7 @@ async def openai_api(request: ChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"OpenAI API-feil: {str(e)}")
 
+
 # --- Exception handler for 404 (api) ---
 @app.exception_handler(StarletteHTTPException)
 async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
@@ -137,7 +150,9 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
         return JSONResponse(status_code=404, content={"error": "Not found"})
     else:
         from fastapi.exception_handlers import http_exception_handler
+
         return await http_exception_handler(request, exc)
+
 
 # --- Serve static files (public folder) ---
 if os.path.exists(STATIC_DIR):
