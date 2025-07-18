@@ -1,84 +1,67 @@
-name: AI Autofix (Full Auto)
+name: AI Autofix Full Auto
 
 on:
   workflow_run:
-    workflows: ["Deploy Fullstack to Scaleway Serverless"] # Navnet på din deploy/test workflow
+    workflows: ["Deploy Fullstack to Scaleway Serverless"]
     types:
       - completed
 
 jobs:
-  ai-autofix:
+  autofix:
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     runs-on: ubuntu-latest
     env:
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-
+      GH_TOKEN: ${{ secrets.PAT }}
+      # Du kan også bruke GITHUB_TOKEN, men med PAT får du push-rettigheter på protected branches
     steps:
-      - name: Checkout code
+      - name: Hent siste kodebase
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
 
-      - name: Last ned workflow-feillogg (kun siste run)
+      - name: Sett brukerkonfig for git
         run: |
-          gh run list --workflow="${{ github.event.workflow_run.workflow_id }}" --json databaseId | jq .[0].databaseId > run_id.txt
-          gh run view $(cat run_id.txt) --log > error.log || true
+          git config --global user.name "elbot-autofix[bot]"
+          git config --global user.email "autofix-bot@elbatt.no"
 
-      - name: Lag context.txt med repo-status og CI-problemer
+      - name: Installer Python og nødvendige pakker
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Installer autofix dependencies
         run: |
-          echo "
-Repository summary:
-- Backend: FastAPI, .env, secrets for OpenAI, Vegvesen, Langflow, m.m.
-- Frontend: React, Dockerized build
-- CI: deploy-all.yml bygger & deployer begge images til Scaleway, secrets fra GitHub
-- Backup: backup_to_s3.py/restore_from_s3.py
-- Gaps: Ikke full CI-test, SonarCloud, backup-automation, og dokumentasjon
-Se full repo-status i README.md og context.txt.
----
-" > context.txt
-          cat error.log >> context.txt
+          pip install black isort autoflake
 
-      - name: Installer OpenAI Python SDK
-        run: pip install openai
-
-      - name: Kjør AI autofix
+      - name: Kjør autofix-verktøy (black, isort, autoflake)
         run: |
-          python3 <<EOF
-import os
-import openai
+          black . || true
+          isort . || true
+          autoflake --in-place --remove-unused-variables --remove-all-unused-imports -r .
+          git status
 
-with open("context.txt") as f:
-    prompt = f"""
-Du er en kodeassistent som kan patche fullstack-prosjekter direkte. Feil og status:
----
-{f.read()}
----
-Lag en unified diff-patch som fikser feilen. Kun patch, ingen forklaring.
-"""
-openai.api_key = os.getenv("OPENAI_API_KEY")
-resp = openai.ChatCompletion.create(
-    model="gpt-4o",
-    messages=[{"role": "user", "content": prompt}],
-    max_tokens=2048,
-    temperature=0,
-)
-out = resp.choices[0].message.content.strip()
-print(out)
-with open("codex_patch.diff", "w") as patch:
-    patch.write(out)
-EOF
-
-      - name: Apply patch fra AI (full auto)
+      - name: Sjekk om det er endringer
+        id: diffcheck
         run: |
-          if [ -s codex_patch.diff ]; then
-            git apply codex_patch.diff || (echo "Patch feilet"; exit 1)
-            git config --global user.name "ai-autofix"
-            git config --global user.email "ai-bot@elbatt.no"
-            git add -A
-            git commit -m "AI autofix (auto-patch via Codex/ChatGPT)"
-            git push
+          if git diff --quiet; then
+            echo "no_changes=true" >> $GITHUB_OUTPUT
           else
-            echo "Ingen AI-patch generert."
+            echo "no_changes=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Notify om AI-autofix feiler
-        if: failure()
-        run: echo "AI autofix kunne ikke reparere automatisk – sjekk context.txt og codex_patch.diff."
+      - name: Commit og push autofiks (kun hvis endringer)
+        if: steps.diffcheck.outputs.no_changes == 'false'
+        run: |
+          git add .
+          git commit -m "AI-autofix: Automatisk fiks av kode etter pipeline-feil [skip ci]"
+          git push https://x-access-token:${{ secrets.PAT }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }}
+
+      - name: Lag pull request hvis push feiler (f.eks. på protected branch)
+        if: failure() && steps.diffcheck.outputs.no_changes == 'false'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.PAT }}
+          commit-message: "AI-autofix: Automatisk PR etter pipeline-feil"
+          branch: autofix/${{ github.run_id }}
+          title: "AI-autofix: Automatisk rettelse av kode"
+          body: |
+            Denne PR-en ble automatisk opprettet etter feil i pipeline. Endringer ble foreslått av AI-autofix.
