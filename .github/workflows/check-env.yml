@@ -1,0 +1,36 @@
+name: Verify Secrets
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.env.example'
+      - '.github/workflows/check-env.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check secrets against .env.example
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          vars=$(grep -v '^#' .env.example | cut -d= -f1)
+          secret_names=$(gh api -H "Accept: application/vnd.github+json" \
+            /repos/${{ github.repository }}/actions/secrets | jq -r '.secrets[].name')
+          missing=0
+          for v in $vars; do
+            if ! echo "$secret_names" | grep -q "^$v$"; then
+              echo "::warning::Missing secret for $v"
+              echo "Missing secret: $v" >> $GITHUB_STEP_SUMMARY
+              missing=1
+            fi
+          done
+          if [ "$missing" -eq 1 ]; then
+            echo "Some secrets are missing." >&2
+            exit 1
+          else
+            echo "All secrets present." >> $GITHUB_STEP_SUMMARY
+          fi
