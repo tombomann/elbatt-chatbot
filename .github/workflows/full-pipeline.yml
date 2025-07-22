@@ -1,0 +1,157 @@
+name: Full Elbatt Chatbot CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop, feat/*]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sett opp Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Installer avhengigheter (backend)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+      - name: Kjør tester og coverage
+        run: |
+          cd backend
+          pytest --cov=backend --cov-report=xml tests/
+      - name: Kjør linter
+        run: |
+          pip install black flake8
+          black --check .
+          flake8 .
+
+  frontend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Installer og bygg frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+      - name: Kjør frontend-tester
+        run: |
+          cd frontend
+          npm test -- --watchAll=false
+
+  codex-autofix:
+    if: failure()
+    needs: [backend-test, frontend-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: AI autofix scripts via OpenAI Codex
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          pip install openai
+          python scripts/ai_autofix.py
+
+      - name: Commit og push autofix
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add .
+          git commit -m "AI-autofix: Rettet feil funnet av CI med Codex"
+          git push origin HEAD:${{ github.head_ref }}
+
+  slack-sentry-notify:
+    if: failure()
+    needs: [backend-test, frontend-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Slack-varsling ved feil
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' --data '{"text":"🚨 CI/CD FEIL: Se Actions-loggen for detaljer!"}' $SLACK_WEBHOOK
+      - name: Sentry-varsling ved feil
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: |
+          pip install sentry-sdk
+          python scripts/report_ci_error.py
+
+  deploy-frontend-netlify:
+    needs: [backend-test, frontend-test]
+    if: github.ref == 'refs/heads/main' && success()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bygg frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+      - name: Deploy til Netlify
+        uses: nwtgck/actions-netlify@v3
+        with:
+          publish-dir: ./frontend/build
+          production-deploy: true
+          deploy-message: "Deploy fra GitHub Actions"
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+
+  deploy-backend-scaleway:
+    needs: [backend-test]
+    if: github.ref == 'refs/heads/main' && success()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy backend (Scaleway/SCP/SSH eller Docker)
+        run: |
+          echo "Her legger du inn din deploy-script (f.eks. rsync, scp, ssh)"
+          # Eks: scp -r backend/* root@51.15.203.146:/opt/elbatt-chatbot/backend/
+          # Eller bruk Scaleway CLI/terraform/docker compose...
+
+  healthcheck-backend:
+    needs: [deploy-backend-scaleway]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sjekk at backend er live
+        run: |
+          curl -f https://api.elbatt.no/chatbot/health || (echo "Healthcheck FEIL!" && exit 1)
+
+  auto-rollback:
+    if: failure()
+    needs: [deploy-frontend-netlify, deploy-backend-scaleway, healthcheck-backend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Rollback (Netlify)
+        run: |
+          # Krever Netlify CLI installert og deploy-token i secrets
+          echo "Automatisk rollback av Netlify og/eller backend ved feil"
+          # netlify deploy --prod --dir=./frontend/build --site $NETLIFY_SITE_ID --auth $NETLIFY_AUTH_TOKEN --rollback
+
+  merge-check:
+    needs: [backend-test, frontend-test]
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sjekk at PR er godkjent før merge
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            if (!pr.data.mergeable_state || pr.data.mergeable_state !== 'clean') {
+              core.setFailed("PR er ikke godkjent og klar til merge.")
+            }
+
