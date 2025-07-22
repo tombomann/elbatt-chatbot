@@ -6,4 +6,4 @@ playwright
 sentry-sdk
 requests
 pytest
-
+httpx
