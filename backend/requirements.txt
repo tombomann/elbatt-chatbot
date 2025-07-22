@@ -2,3 +2,8 @@ fastapi
 uvicorn
 aiofiles  # Trengs for å serve statiske filer med FastAPI
 python-dotenv
+playwright
+sentry-sdk
+requests
+pytest
+
