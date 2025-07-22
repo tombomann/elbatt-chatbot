@@ -4,9 +4,11 @@ from playwright_varta import varta_lookup
 
 app = FastAPI()
 
+
 @app.get("/api/varta/health")
 def health():
     return {"status": "ok"}
+
 
 @app.get("/api/varta/{regnr}")
 async def get_battery_code(regnr: str):
