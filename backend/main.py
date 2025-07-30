@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 # --- Importér tjenester ---
 from backend.openai_service import call_openai_api
-from backend.produktfeed import finn_produkt
+from backend.produktfeed import finn_produkt, start_background_updater
 from backend.faq import faq_match
 from backend.logger import log_chat
 from backend.vegvesen_service import lookup_vehicle, format_vegvesen_svar
