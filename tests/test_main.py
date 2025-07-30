@@ -1,4 +1,9 @@
+import os
 from fastapi.testclient import TestClient
+
+# Ensure the OpenAI API key is set for tests
+os.environ.setdefault("OPENAI_API_KEY", "test")
+
 from backend.main import app
 
 client = TestClient(app)

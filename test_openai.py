@@ -31,4 +31,5 @@ async def test_openai():
         print("OpenAI API error:", e)
 
 
-asyncio.run(test_openai())
+if __name__ == "__main__":
+    asyncio.run(test_openai())
