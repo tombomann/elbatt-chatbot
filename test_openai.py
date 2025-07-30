@@ -1,3 +1,13 @@
+"""Simple script for manual OpenAI API check.
+
+This file is not intended to be collected by pytest during the automated test
+suite.  The ``__test__`` flag prevents pytest from treating this module as a
+test.  Run the script manually if you want to verify connectivity to the
+OpenAI service.
+"""
+
+__test__ = False
+
 import os
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
