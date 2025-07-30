@@ -30,4 +30,4 @@ pnpm-lock.yaml
 # CI/CD og test
 coverage/
 *.sqlite3
-te
+*--no-pager
