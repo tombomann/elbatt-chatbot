@@ -55,4 +55,5 @@ jobs:
           git add .
           git diff --cached --quiet || git commit -m "Automatisk optimalisering av scripts"
           branch="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+          git pull --rebase origin "$branch"
           git push origin HEAD:"$branch"
