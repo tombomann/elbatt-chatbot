@@ -67,4 +67,11 @@ def finn_produkt(sok):
 
 
 # Start automatisk oppdatering
-threading.Thread(target=bakgrunnsoppdatering, daemon=True).start()
+def start_background_updater():
+    thread = threading.Thread(target=bakgrunnsoppdatering, daemon=True)
+    thread.start()
+    return thread
+
+
+if __name__ == "__main__":
+    start_background_updater()
