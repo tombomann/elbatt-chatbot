@@ -1,7 +1,12 @@
+import os
 import requests
 
 # DINE VERDIER HER:
-FLOWISE_API_KEY = "hVg_EudrAQDq6UEOuprq82YVgtUb1AEIG6U9ViYGYy8"  # <- Din API-key
+FLOWISE_API_KEY = os.getenv("FLOWISE_API_KEY")
+if not FLOWISE_API_KEY:
+    raise RuntimeError(
+        "Mangler FLOWISE_API_KEY. Sett miljøvariabelen før du kjører scriptet."
+    )
 FLOWISE_HOST = (
     "https://cloud.flowiseai.com"  # <- Eller https://elbatt-chatbot.onrender.com
 )
