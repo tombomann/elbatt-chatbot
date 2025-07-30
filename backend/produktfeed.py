@@ -45,6 +45,10 @@ def bakgrunnsoppdatering():
         time.sleep(CACHE_VARIGHET)
 
 
+def start_background_updater():
+    threading.Thread(target=bakgrunnsoppdatering, daemon=True).start()
+
+
 def get_produkter():
     if time.time() - produkt_cache["tid"] > CACHE_VARIGHET:
         hent_og_cache_produkter()
@@ -66,11 +70,13 @@ def finn_produkt(sok):
     return treff
 
 
+
 # Start automatisk oppdatering
 def start_background_updater():
     thread = threading.Thread(target=bakgrunnsoppdatering, daemon=True)
     thread.start()
     return thread
+
 
 
 if __name__ == "__main__":
