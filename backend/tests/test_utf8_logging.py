@@ -1,18 +1,26 @@
-import os
 import json
+from pathlib import Path
 
-TEST_FILE = "/root/elbatt-chatbot/test_utf8.txt"
-data = {"tekst": "ÆØÅ æøå", "emoji": "🤖"}
 
-# Skriv til fil
-with open(TEST_FILE, "w", encoding="utf-8") as f:
-    f.write(json.dumps(data, ensure_ascii=False))
+def test_utf8_logging(tmp_path: Path) -> None:
+    """Test that UTF-8 characters are written and read correctly."""
 
-# Les fra fil
-with open(TEST_FILE, "r", encoding="utf-8") as f:
-    d = json.loads(f.read())
+    test_file = tmp_path / "test_utf8.txt"
+    data = {"tekst": "ÆØÅ æøå", "emoji": "🤖"}
 
-assert d["tekst"] == "ÆØÅ æøå"
-assert d["emoji"] == "🤖"
+    # Write to file
+    with test_file.open("w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
 
-print("UTF-8 test OK!")
+    # Read from file
+    with test_file.open("r", encoding="utf-8") as f:
+        d = json.load(f)
+
+    assert d["tekst"] == "ÆØÅ æøå"
+    assert d["emoji"] == "🤖"
+
+    # Clean up
+    test_file.unlink()
+    assert not test_file.exists()
+
+    print("UTF-8 test OK!")
