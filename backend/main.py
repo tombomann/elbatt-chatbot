@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 # --- Importér tjenester ---
 from backend.openai_service import call_openai_api
-from backend.produktfeed import finn_produkt
+from backend.produktfeed import finn_produkt, start_background_updater
 from backend.faq import faq_match
 from backend.logger import log_chat
 from backend.vegvesen_service import lookup_vehicle, format_vegvesen_svar
@@ -161,3 +161,9 @@ if os.path.exists(STATIC_DIR):
 # --- Serve /assets/ (for bilder, f.eks. bilskilt) ---
 if os.path.exists(ASSETS_DIR):
     app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
+
+
+# --- Start background tasks ---
+@app.on_event("startup")
+def startup_background_tasks():
+    start_background_updater()
