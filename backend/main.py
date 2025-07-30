@@ -161,5 +161,3 @@ if os.path.exists(STATIC_DIR):
 # --- Serve /assets/ (for bilder, f.eks. bilskilt) ---
 if os.path.exists(ASSETS_DIR):
     app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
-
-start_background_updater()
