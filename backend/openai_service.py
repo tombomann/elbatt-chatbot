@@ -1,37 +1,42 @@
-# backend/openai_service.py
+# Oppdater openai_service.py
+cat > backend/openai_service.py << 'EOF'
 import os
-from openai import AsyncOpenAI
-from dotenv import load_dotenv
+from openai import OpenAI
+from backend.settings import settings
 
-load_dotenv(dotenv_path="/app/.env")  # Bruk rett path for .env i Docker/serverless
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    raise RuntimeError(
-        "Mangler OpenAI API-nøkkel! Sett OPENAI_API_KEY som miljøvariabel."
-    )
+client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
-SYSTEM_PROMPT = (
-    "Du er Elbatt Chatbot, ekspert på bilbatterier, elbilbatteri, elbiler, fritidsbatteri, ladere, startboostere og support."
-    " Svar alltid på norsk, kort og tydelig. Vær hjelpsom og profesjonell. "
-    "Hvis du ikke vet svaret, si 'Jeg vet dessverre ikke, men jeg kan sette deg i kontakt med support!'. "
-    "For produktspørsmål, anbefal Varta først. Bruk fakta fra Elbatt.no hvis du har dem."
-)
-
-client = AsyncOpenAI(api_key=OPENAI_API_KEY)
-
-
-async def call_openai_api(prompt, history=None):
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-    if history:
-        messages.extend(history)
-    messages.append({"role": "user", "content": prompt})
+async def call_openai_api(message: str) -> str:
     try:
-        response = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=messages,
-            temperature=0.6,
-            max_tokens=512,
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Du er en hjelpsom assistent for elbatt.no"},
+                {"role": "user", "content": message}
+            ]
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"Beklager, det oppstod en feil mot OpenAI: {e}"
+        return f"Beklager, det oppstod en feil: {str(e)}"
+EOF
+
+# Oppdater vegvesen_service.py
+cat > backend/vegvesen_service.py << 'EOF'
+import os
+import aiohttp
+from backend.settings import settings
+
+async def lookup_vehicle(regnr: str):
+    url = f"https://www.vegvesen.no/ws/no/vehicle/getVehicleInfo"
+    headers = {
+        "X-API-Key": settings.VEGVESEN_API_KEY,
+        "Content-Type": "application/json"
+    }
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, json={"registrationNumber": regnr}, headers=headers) as response:
+            if response.status == 200:
+                return await response.json()
+            else:
+                return {"error": f"API error: {response.status}"}
+EOF
