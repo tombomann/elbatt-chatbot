@@ -1,54 +1,49 @@
-name: Deploy to Scaleway Serverless
+# Lag .github/workflows/deploy.yml
+cat > .github/workflows/deploy.yml << 'EOF'
+name: Deploy to Production
 
 on:
   push:
-    paths:
-      - 'frontend/**'
-      - 'backend/**'
-      - '.github/workflows/deploy.yml'
-    branches:
-      - main
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
-      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
-      SCW_PROJECT_ID: ${{ secrets.SCW_PROJECT_ID }}
-      SCW_DEFAULT_ORGANIZATION_ID: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
-      SCW_DEFAULT_REGION: fr-par
-      REGISTRY_URL: rg.fr-par.scw.cloud/funcscwelbattlangflow0qetcsl6
-      CONTAINER_ID: 834b7ef2-be09-4906-a3c9-31529af200f7 # ← Sett til din!
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Scaleway CLI (latest, med retry)
+      - uses: actions/checkout@v4
+      
+      - name: Set up environment
         run: |
-          set -e
-          for i in {1..5}; do
-            TAG=$(curl -fsSL https://api.github.com/repos/scaleway/scaleway-cli/releases/latest | grep '"tag_name":' | cut -d'"' -f4)
-            FILE="scaleway-cli_${TAG#v}_linux_amd64"
-            URL="https://github.com/scaleway/scaleway-cli/releases/download/${TAG}/${FILE}"
-            echo "Forsøk $i: $URL"
-            if curl -fsSL "$URL" -o scw; then
-              chmod +x scw && sudo mv scw /usr/local/bin/scw && scw version && break
-            else
-              sleep 5
-            fi
-            [ $i -eq 5 ] && exit 1
-          done
-
-      - name: Docker login
-        run: echo "${SCW_SECRET_KEY}" | docker login ${{ env.REGISTRY_URL }} -u "${SCW_ACCESS_KEY}" --password-stdin
-
-      - name: Build Docker image (alt i én container)
-        run: docker build -t ${{ env.REGISTRY_URL }}/app:latest .
-
-      - name: Push Docker image
-        run: docker push ${{ env.REGISTRY_URL }}/app:latest
-
-      - name: Deploy container
-        run: scw container container deploy $CONTAINER_ID
+          echo "REDIS_HOST=redis" >> .env
+          echo "REDIS_PORT=6379" >> .env
+          echo "REDIS_PASSWORD=" >> .env
+          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
+          echo "VEGVESEN_API_KEY=${{ secrets.VEGVESEN_API_KEY }}" >> .env
+          echo "LANGFLOW_API_KEY=${{ secrets.LANGFLOW_API_KEY }}" >> .env
+          echo "SCW_ACCESS_KEY=${{ secrets.SCW_ACCESS_KEY }}" >> .env
+          echo "SCW_SECRET_KEY=${{ secrets.SCW_SECRET_KEY }}" >> .env
+          echo "SCW_DEFAULT_ORGANIZATION_ID=${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}" >> .env
+          echo "SCW_DEFAULT_PROJECT_ID=${{ secrets.SCW_DEFAULT_PROJECT_ID }}" >> .env
+          echo "SCW_ORGANIZATION_ID=${{ secrets.SCW_ORGANIZATION_ID }}" >> .env
+          echo "SCW_PROJECT_ID=${{ secrets.SCW_PROJECT_ID }}" >> .env
+          echo "ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }}" >> .env
+          echo "STATIC_DIR=${{ secrets.STATIC_DIR }}" >> .env
+          echo "ASSETS_DIR=${{ secrets.ASSETS_DIR }}" >> .env
+          echo "SENTRY_ORG=${{ secrets.SENTRY_ORG }}" >> .env
+          echo "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" >> .env
+          echo "SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}" >> .env
+          echo "GH_PAT=${{ secrets.GH_PAT }}" >> .env
+          echo "NETLIFY_AUTH_TOKEN=${{ secrets.NETLIFY_AUTH_TOKEN }}" >> .env
+          echo "NETLIFY_SITE_ID=${{ secrets.NETLIFY_SITE_ID }}" >> .env
+          
+      - name: Build and deploy
+        run: |
+          docker-compose down
+          docker-compose up --build -d
+          
+      - name: Health check
+        run: |
+          sleep 30
+          curl -f http://localhost:8000/api/health || exit 1
+EOF
