@@ -1,0 +1,52 @@
+name: Auto-generate Documentation
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  generate-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Generate README
+        run: |
+          cat > README.md << 'EOF'
+          # elbatt-chatbot
+          
+          ## 🤖 Beskrivelse
+          En avansert chatbot for elbatt.no med integrasjon mot Vegvesen, Varta og OpenAI.
+          
+          ## 🏗️ Arkitektur
+          - **Backend**: FastAPI (Python)
+          - **Frontend**: Moderne webapplikasjon  
+          - **Deploy**: Docker + GitHub Actions + Scaleway
+          
+          ## 🚀 Lokal utvikling
+          \`\`\`bash
+          docker-compose up --build
+          \`\`\`
+          
+          ## 📡 API Endepunkter
+          - \`POST /api/chat\` - Hovedchat-endepunkt
+          - \`POST /api/vegvesen\` - Direkte Vegvesen-oppslag
+          - \`POST /api/varta\` - Varta-produktsøk
+          - \`GET /api/health\` - Health check
+          
+          ## 🔧 Teknologi
+          - Python, FastAPI, Docker
+          - OpenAI GPT, Vegvesen API, Varta
+          - GitHub Actions, Scaleway
+          
+          ## 📄 Lisens
+          MIT
+          EOF
+          
+      - name: Commit README
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add README.md
+          git diff --staged --quiet || git commit -m "docs: auto-generate README"
+          git push
