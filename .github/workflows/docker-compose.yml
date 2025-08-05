@@ -1,0 +1,67 @@
+# Lag oppdatert docker-compose.yml
+cat > docker-compose.yml << 'EOF'
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Redis
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      
+      # API Keys
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - VEGVESEN_API_KEY=${VEGVESEN_API_KEY}
+      - LANGFLOW_API_KEY=${LANGFLOW_API_KEY}
+      
+      # Scaleway
+      - SCW_ACCESS_KEY=${SCW_ACCESS_KEY}
+      - SCW_SECRET_KEY=${SCW_SECRET_KEY}
+      - SCW_DEFAULT_ORGANIZATION_ID=${SCW_DEFAULT_ORGANIZATION_ID}
+      - SCW_DEFAULT_PROJECT_ID=${SCW_DEFAULT_PROJECT_ID}
+      - SCW_ORGANIZATION_ID=${SCW_ORGANIZATION_ID}
+      - SCW_PROJECT_ID=${SCW_PROJECT_ID}
+      
+      # Applikasjon
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - STATIC_DIR=${STATIC_DIR}
+      - ASSETS_DIR=${ASSETS_DIR}
+      
+      # Monitoring
+      - SENTRY_ORG=${SENTRY_ORG}
+      - SENTRY_DSN=${SENTRY_DSN}
+      
+      # Sonar
+      - SONAR_TOKEN=${SONAR_TOKEN}
+      
+      # GitHub
+      - GH_PAT=${GH_PAT}
+      
+      # Netlify
+      - NETLIFY_AUTH_TOKEN=${NETLIFY_AUTH_TOKEN}
+      - NETLIFY_SITE_ID=${NETLIFY_SITE_ID}
+      
+    volumes:
+      - ./public:/app/public
+      - ./assets:/app/assets
+      - ./chat_logs.jsonl:/app/chat_logs.jsonl
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+EOF
