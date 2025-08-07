@@ -1,0 +1,46 @@
+name: GLM-4.5 Compatibility Check
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # Daglig kl 03:00
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  glm-compatibility:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Check GLM-4.5 Compatibility
+      run: |
+        echo "🤖 Checking GLM-4.5 compatibility..."
+        
+        # Sjekk om det er GLM-4.5 spesifikke endringer
+        if git log --oneline --since="1 week ago" | grep -i "glm"; then
+          echo "GLM-4.5 changes detected in the last week"
+          echo "::set-output name=glm_changes::true"
+        else
+          echo "No GLM-4.5 changes in the last week"
+          echo "::set-output name=glm_changes::false"
+        fi
+    
+    - name: Update Documentation
+      if: steps.glm-compatibility.outputs.glm_changes == 'true'
+      run: |
+        echo "Updating documentation for GLM-4.5..."
+        # Legg til eventuelle dokumentasjonsoppdateringer her
+        
+    - name: Create Issue if Updates Needed
+      if: steps.glm-compatibility.outputs.glm_changes == 'true'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: 'GLM-4.5 Compatibility Update Needed',
+            body: 'New GLM-4.5 features or changes detected. Please review and update compatibility.',
+            labels: ['glm-4.5', 'update-needed']
+          })
