@@ -31,3 +31,5 @@ pnpm-lock.yaml
 coverage/
 *.sqlite3
 te
+.ENV
+.env
