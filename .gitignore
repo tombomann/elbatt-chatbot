@@ -34,3 +34,5 @@ te
 .ENV
 .env
 session_summary.json
+*.backup
+glm-context.txt

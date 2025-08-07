@@ -1,6 +1,31 @@
+#!/bin/bash
+
+echo "Oppdaterer session_summary.py..."
+
+# Lag en midlertidig fil med den oppdaterte funksjonen
+cat > /tmp/new_get_current_features.py << 'PYEOF'
+def get_current_features():
+    """Henter liste over implementerte funksjoner"""
+    try:
+        with open("GLM-4.5-FEATURES.md", "r") as f:
+            content = f.read()
+            # Trekk ut alle linjer med ✓
+            features = []
+            for line in content.split('\n'):
+                if '✓' in line and 'Implementerte Funksjoner' not in line:
+                    # Fjern ✓ og eventuelle andre spesialtegn
+                    feature = line.replace('✓', '').replace('- [x]', '').strip()
+                    if feature:
+                        features.append(feature)
+            return features
+    except FileNotFoundError:
+        return ["Kunne ikke finne GLM-4.5-FEATURES.md"]
+PYEOF
+
+# Opprett en ny versjon av session_summary.py
+cat > backend/session_summary.py << 'PYEOF'
 import os
 import json
-import re
 from datetime import datetime
 
 def get_current_features():
@@ -8,28 +33,15 @@ def get_current_features():
     try:
         with open("GLM-4.5-FEATURES.md", "r") as f:
             content = f.read()
+            # Trekk ut alle linjer med ✓
             features = []
-            
-            # Finn seksjonen "Implementerte Funksjoner"
-            in_features_section = False
             for line in content.split('\n'):
-                # Sjekk om vi er i "Implementerte Funksjoner" seksjonen
-                if "Implementerte Funksjoner" in line:
-                    in_features_section = True
-                    continue
-                
-                # Hvis vi kommer til en ny seksjon, stopp
-                if in_features_section and line.strip().startswith('-') and "Funksjoner" in line:
-                    break
-                
-                # Samle funksjoner i denne seksjonen
-                if in_features_section and ('- [x]' in line or '✓' in line):
-                    # Fjern markdown og whitespace
-                    feature = re.sub(r'^[\s\-\*\✓\[\]x]+', '', line).strip()
+                if '✓' in line and 'Implementerte Funksjoner' not in line:
+                    # Fjern ✓ og eventuelle andre spesialtegn
+                    feature = line.replace('✓', '').replace('- [x]', '').strip()
                     if feature:
                         features.append(feature)
-            
-            return features if features else ["Ingen funksjoner funnet i GLM-4.5-FEATURES.md"]
+            return features
     except FileNotFoundError:
         return ["Kunne ikke finne GLM-4.5-FEATURES.md"]
 
@@ -93,3 +105,6 @@ if __name__ == "__main__":
     print(f"Recent changes: {len(summary['recent_changes'])}")
     print(f"TODO items: {len(summary['todo_items'])}")
     print(f"API endpoints: {len(summary['api_endpoints'])}")
+PYEOF
+
+echo "session_summary.py oppdatert"
