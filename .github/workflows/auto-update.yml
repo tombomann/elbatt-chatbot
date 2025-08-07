@@ -1,0 +1,28 @@
+name: Auto Update Dependencies
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'  # Mandag kl 02:00
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Update dependencies
+      run: |
+        # Oppdater Python dependencies
+        pip-compile --upgrade requirements.in
+        
+        # Oppdater Docker images
+        sed -i 's/redis:7-alpine/redis:7-alpine/' docker-compose.yml
+        
+    - name: Commit changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add .
+        git diff --staged --quiet || git commit -m "chore: Update dependencies"
+        git push
