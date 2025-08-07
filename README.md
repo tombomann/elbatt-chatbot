@@ -16,8 +16,8 @@ For å komme raskt i gang med en ny chat i GLM-4.5, følg disse stegene:
 git clone https://github.com/tombomann/elbatt-chatbot.git
 cd elbatt-chatbot
 
-
-
-
+git
+exit
+?
 
 
