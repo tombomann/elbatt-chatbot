@@ -15,13 +15,7 @@ services:
       - VAR2=${VAR2}
     restart: unless-stopped
     depends_on:
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - redis
     networks:
       - app-network
 
@@ -30,16 +24,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:80"
+      - "3001:80"  # Endret fra 3000 til 3001
     restart: unless-stopped
     depends_on:
-      backend:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - backend
     networks:
       - app-network
 
@@ -50,11 +38,6 @@ services:
     volumes:
       - redis_data:/data
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     networks:
       - app-network
 
