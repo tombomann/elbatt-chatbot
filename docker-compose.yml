@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   backend:
     build:
@@ -9,13 +8,22 @@ services:
     env_file:
       - .env
     environment:
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      VEGVESEN_API_KEY: ${VEGVESEN_API_KEY}
-      VAR1: value1
-      VAR2: value2
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - VEGVESEN_API_KEY=${VEGVESEN_API_KEY}
+      - LANGFLOW_API_KEY=${LANGFLOW_API_KEY}
+      - VAR1=${VAR1}
+      - VAR2=${VAR2}
     restart: unless-stopped
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - app-network
 
   frontend:
     build:
@@ -25,7 +33,15 @@ services:
       - "3000:80"
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - app-network
 
   redis:
     image: redis:7-alpine
@@ -34,6 +50,17 @@ services:
     volumes:
       - redis_data:/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
 
 volumes:
   redis_data:
