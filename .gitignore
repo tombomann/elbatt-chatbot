@@ -33,3 +33,4 @@ coverage/
 te
 .ENV
 .env
+session_summary.json
