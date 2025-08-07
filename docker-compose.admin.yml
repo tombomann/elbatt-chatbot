@@ -1,0 +1,46 @@
+services:
+  admin-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.admin
+    ports:
+      - "8002:8001"  # Endret fra 8001 til 8002
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - ADMIN_TOKEN=${ADMIN_TOKEN}
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - admin-network
+
+  admin-frontend:
+    build:
+      context: ./admin-dashboard
+      dockerfile: Dockerfile
+    ports:
+      - "3002:80"
+    depends_on:
+      - admin-backend
+    restart: unless-stopped
+    networks:
+      - admin-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - admin-network
+
+networks:
+  admin-network:
+    driver: bridge
+
+volumes:
+  redis_data:
