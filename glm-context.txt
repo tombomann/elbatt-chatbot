@@ -1,0 +1,27 @@
+# GLM-4.5 Kontekst for elbatt-chatbot
+
+## Prosjektstatus
+b38e482c - chore: Sikre .ENV-fil og legg til i .gitignore (2 hours ago)
+
+## Viktige Filer
+- backend/main.py: Hoved-API med FastAPI
+- backend/openai_service.py: GLM-4.5 integrasjon
+- docker-compose.yml: Container-oppsett
+- GLM-4.5-FEATURES.md: Funksjonsoversikt
+
+## Nåværende Faser
+Timestamp: 2025-08-07T03:53:32.452617
+Features: 0
+TODOs: 5
+
+## Neste Steg
+- session_summary.py:28 - """Henter TODO-elementer fra prosjektet"""
+- session_summary.py:31 - # Søk etter TODO i Python-filer
+- session_summary.py:37 - if "TODO" in line or "FIXME" in line:
+
+## Viktige Beslutninger
+- Bruker FastAPI for backend
+- Redis for caching
+- Nginx for frontend på port 3001
+- GLM-4.5 for AI-funksjonalitet
+

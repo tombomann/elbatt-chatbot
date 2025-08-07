@@ -1,0 +1,385 @@
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import uvicorn
+import os
+import requests
+import json
+from typing import Optional, Dict, Any
+import re
+
+app = FastAPI(title="Elbatt Chatbot API", version="1.0.0")
+
+class ChatMessage(BaseModel):
+    message: str
+    session_id: Optional[str] = None
+
+class VehicleLookup(BaseModel):
+    registration_number: str
+
+# Database over biler og deres batterier (i en ekte applikasjon ville dette vært i en ekte database)
+VEHICLE_BATTERY_DB = {
+    "AB12345": {
+        "make": "Tesla",
+        "model": "Model 3",
+        "year": 2021,
+        "battery_type": "Li-ion",
+        "battery_capacity_kwh": 75,
+        "battery_voltage": "350V",
+        "battery_cells": "2170",
+        "battery_warranty_km": 160000,
+        "battery_warranty_years": 8,
+        "battery_part_number": "Tesla 1111111-00-B",
+        "compatible_batteries": [
+            {
+                "brand": "Tesla OEM",
+                "part_number": "1111111-00-B",
+                "capacity_kwh": 75,
+                "price_nok": 85000,
+                "warranty": "8 år eller 160000 km"
+            },
+            {
+                "brand": "Varta",
+                "part_number": "VARTA-TESLA-M3-75",
+                "capacity_kwh": 75,
+                "price_nok": 82000,
+                "warranty": "8 år eller 160000 km"
+            }
+        ]
+    },
+    "BC67890": {
+        "make": "Volkswagen",
+        "model": "ID.4",
+        "year": 2022,
+        "battery_type": "Li-ion",
+        "battery_capacity_kwh": 82,
+        "battery_voltage": "352V",
+        "battery_cells": "LG Chem",
+        "battery_warranty_km": 160000,
+        "battery_warranty_years": 8,
+        "battery_part_number": "VW 5G0 915 123",
+        "compatible_batteries": [
+            {
+                "brand": "VW OEM",
+                "part_number": "5G0 915 123",
+                "capacity_kwh": 82,
+                "price_nok": 95000,
+                "warranty": "8 år eller 160000 km"
+            },
+            {
+                "brand": "Varta",
+                "part_number": "VARTA-VW-ID4-82",
+                "capacity_kwh": 82,
+                "price_nok": 92000,
+                "warranty": "8 år eller 160000 km"
+            }
+        ]
+    },
+    "DE13579": {
+        "make": "Nissan",
+        "model": "Leaf",
+        "year": 2020,
+        "battery_type": "Li-ion",
+        "battery_capacity_kwh": 62,
+        "battery_voltage": "355V",
+        "battery_cells": "Lithium Nickel Manganese Cobalt Oxide",
+        "battery_warranty_km": 160000,
+        "battery_warranty_years": 8,
+        "battery_part_number": "Nissan 29500-5KA0A",
+        "compatible_batteries": [
+            {
+                "brand": "Nissan OEM",
+                "part_number": "29500-5KA0A",
+                "capacity_kwh": 62,
+                "price_nok": 75000,
+                "warranty": "8 år eller 160000 km"
+            },
+            {
+                "brand": "Varta",
+                "part_number": "VARTA-NISSAN-LEAF-62",
+                "capacity_kwh": 62,
+                "price_nok": 72000,
+                "warranty": "8 år eller 160000 km"
+            }
+        ]
+    },
+    "EF24680": {
+        "make": "Hyundai",
+        "model": "Kona Electric",
+        "year": 2023,
+        "battery_type": "Li-ion",
+        "battery_capacity_kwh": 64,
+        "battery_voltage": "356V",
+        "battery_cells": "LG Chem",
+        "battery_warranty_km": 160000,
+        "battery_warranty_years": 8,
+        "battery_part_number": "Hyundai 38110-B2A00",
+        "compatible_batteries": [
+            {
+                "brand": "Hyundai OEM",
+                "part_number": "38110-B2A00",
+                "capacity_kwh": 64,
+                "price_nok": 78000,
+                "warranty": "8 år eller 160000 km"
+            },
+            {
+                "brand": "Varta",
+                "part_number": "VARTA-HYUNDAI-KONA-64",
+                "capacity_kwh": 64,
+                "price_nok": 75000,
+                "warranty": "8 år eller 160000 km"
+            }
+        ]
+    },
+    "SU18018": {
+        "make": "Tesla",
+        "model": "Model S",
+        "year": 2019,
+        "battery_type": "Li-ion",
+        "battery_capacity_kwh": 100,
+        "battery_voltage": "350V",
+        "battery_cells": "Panasonic 18650",
+        "battery_warranty_km": 192000,
+        "battery_warranty_years": 8,
+        "battery_part_number": "Tesla 1028420-00-K",
+        "compatible_batteries": [
+            {
+                "brand": "Tesla OEM",
+                "part_number": "1028420-00-K",
+                "capacity_kwh": 100,
+                "price_nok": 120000,
+                "warranty": "8 år eller 192000 km"
+            },
+            {
+                "brand": "Varta",
+                "part_number": "VARTA-TESLA-MS-100",
+                "capacity_kwh": 100,
+                "price_nok": 115000,
+                "warranty": "8 år eller 192000 km"
+            }
+        ]
+    }
+}
+
+@app.get("/api/health")
+async def health_check():
+    return {"status": "ok", "feed_items": 978}
+
+@app.head("/api/health")
+async def health_check_head():
+    return {"status": "ok", "feed_items": 978}
+
+@app.post("/api/chat")
+async def chat_endpoint(chat_message: ChatMessage):
+    try:
+        user_message = chat_message.message.lower()
+        
+        # Hent API-nøkler fra environment
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        vegvesen_api_key = os.getenv("VEGVESEN_API_KEY")
+        
+        # Hilsen og generelle spørsmål
+        if any(word in user_message for word in ["hei", "hallo", "hello", "god dag"]):
+            return {
+                "response": "Hei! Jeg er Elbatt Chatbot, din ekspert på elbiler og batterier. Jeg kan hjelpe deg med informasjon om elbilbatterier, slå opp bilinfo fra Vegvesenet, eller finne riktige Varta-batterier basert på bilnummer. Hva kan jeg hjelpe deg med i dag?",
+                "status": "success"
+            }
+        
+        # Batteri-relaterte spørsmål
+        if any(word in user_message for word in ["batteri", "batterikapasitet", "batterilevetid", "lading", "range"]):
+            return {
+                "response": "Når det gjelder elbilbatterier, er det flere viktige faktorer å vurdere:\n\n1. **Batterikapasitet**: De fleste moderne elbiler har mellom 60-100 kWh\n2. **Rekkevidde**: Vanligvis 300-500 km på full lading\n3. **Levetid**: 8-15 år eller 1500-2000 ladesykluser\n4. **Hurtiglading**: Mange støtter opptil 150-350 kW\n\nHar du et spesifikt spørsmål om batterier til en bestemt bilmodell? Jeg kan også slå opp batteriinformasjon hvis du gir meg bilens registreringsnummer.",
+                "status": "success"
+            }
+        
+        # Spesifikt batteri-søk basert på bilnummer - utvidet med flere nøkkelord
+        if any(phrase in user_message for phrase in [
+            "batteri på bilnummer", "batteri til bil", "finn batteri", "hvilket batteri", 
+            "batteri for bil med", "passer til bil med", "hvilket batteri passer til bil med regnr",
+            "regnr", "registreringsnummer"
+        ]):
+            # Prøv å ekstrahere registreringsnummer fra meldingen med flere mønstre
+            patterns = [
+                r'[A-Z]{2}\d{5}',      # AB12345
+                r'[A-Z]{2}\d{6}',      # AB123456
+                r'[A-Z]{2}\s*\d{5,6}', # AB 12345 eller AB 123456
+                r'regnr\s*[A-Z]{2}\s*\d{5,6}', # regnr AB12345
+                r'registreringsnummer\s*[A-Z]{2}\s*\d{5,6}' # registreringsnummer AB12345
+            ]
+            
+            reg_number = None
+            for pattern in patterns:
+                match = re.search(pattern, user_message.upper())
+                if match:
+                    # Rens opp registreringsnummeret (fjern mellomrom)
+                    reg_number = re.sub(r'[^A-Z0-9]', '', match.group())
+                    break
+            
+            if reg_number:
+                return await get_battery_info_by_registration(reg_number)
+            else:
+                return {
+                    "response": "Jeg kan hjelpe deg med å finne riktig batteri til en bil! For å gjøre dette, trenger jeg bilens registreringsnummer.\n\nEksempel: \"Hvilket batteri passer til bil med regnr AB12345?\"\n\nHva er registreringsnummeret på bilen?",
+                    "status": "success"
+                }
+        
+        # Vegvesen-relaterte spørsmål
+        if any(word in user_message for word in ["vegvesen", "registrering", "regnummer", "nummer", "oppslag"]):
+            return {
+                "response": "Jeg kan slå opp informasjon i Vegvesenets register for deg! For å gjøre dette, trenger jeg bilens registreringsnummer.\n\nEksempel: \"AB12345\" eller \"EL12345\"\n\nNår jeg har registreringsnummeret, kan jeg også finne informasjon om hvilket batteri som passer til bilen.",
+                "status": "success"
+            }
+        
+        # Varta-relaterte spørsmål
+        if any(word in user_message for word in ["varta", "bytte", "nytt batteri", "pris"]):
+            return {
+                "response": "Varta er en ledende produsent av elbilbatterier. De tilbyr batterier for de fleste bilmerker og modeller.\n\nTypiske priser for Varta-batterier:\n- Små biler (f.eks. Nissan Leaf): 40-60.000 kr\n- Mellomklasse (f.eks. Tesla Model 3): 60-90.000 kr\n- Luksusbiler (f.eks. Audi e-tron): 90-150.000 kr\n\nHvis du forteller meg hvilken bilmodell du har, eller gir meg registreringsnummeret, kan jeg finne nøyaktig hvilket Varta-batteri som passer.",
+                "status": "success"
+            }
+        
+        # Lading-relaterte spørsmål
+        if any(word in user_message for word in ["lade", "lader", "hurtiglading", "hjemmelading"]):
+            return {
+                "response": "Når det gjelder lading av elbiler, finnes det flere alternativer:\n\n**Hjemmelading**: 3.7 kW (normal) eller 11 kW (hurtig) - tar 6-10 timer for full lading\n**Offentlig lading**: 7-22 kW - tar 2-6 timer\n**Hurtiglading**: 50-350 kW - tar 20-60 minutter for 80% lading\n\nDe fleste moderne elbiler støtter alle disse alternativene. Har du spesifikke spørsmål om lading?",
+                "status": "success"
+            }
+        
+        # Rekkevidde og range anxiety
+        if any(word in user_message for word in ["rekkevidde", "range", "range anxiety", "tømming"]):
+            return {
+                "response": "Rekkevidde for elbiler har forbedret seg dramatisk de siste årene:\n\n**Små biler**: 200-300 km (f.eks. Fiat 500e, VW e-Up)\n**Mellomklasse**: 300-450 km (f.eks. Tesla Model 3, Hyundai Ioniq 5)\n**Luksus/SUV**: 400-600 km (f.eks. Tesla Model S, Audi e-tron)\n\nTips for bedre rekkevidde:\n- Kjør økonomisk\n- Bruk regenerativ bremsing\n- Forvarm batteri ved kaldt vær\n- Planlegg ruter med ladestasjoner",
+                "status": "success"
+            }
+        
+        # Test respons
+        if "test" in user_message:
+            return {
+                "response": "Dette er en testrespons fra Elbatt Chatbot! Jeg er klar til å hjelpe deg med informasjon om elbiler, batterier, Vegvesen-oppslag eller finne riktig batteri basert på bilnummer. Hva vil du vite mer om?",
+                "status": "success"
+            }
+        
+        # Standard respons
+        return {
+            "response": "Jeg er Elbatt Chatbot, din ekspert på elbiler og batterier! Jeg kan hjelpe deg med:\n\n🔋 **Batteriinformasjon** - Kapasitet, levetid, lading\n🚗 **Bilinfo fra Vegnesenet** - Registreringsopplysninger\n🔧 **Varta-batterier** - Priser og kompatibilitet\n🔍 **Batterisøk** - Finn riktig batteri basert på bilnummer\n⚡ **Ladeløsninger** - Hjemmelading og hurtiglading\n\nHva lurer du på om elbiler eller batterier i dag?",
+            "status": "success"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing message: {str(e)}")
+
+async def get_battery_info_by_registration(reg_number: str) -> Dict[str, Any]:
+    """Hent batteriinformasjon basert på registreringsnummer"""
+    reg_number = reg_number.upper()
+    
+    if reg_number in VEHICLE_BATTERY_DB:
+        vehicle = VEHICLE_BATTERY_DB[reg_number]
+        
+        response = {
+            "response": f"Fant bilinformasjon for {vehicle['make']} {vehicle['model']} ({vehicle['year']}):\n\n",
+            "status": "success"
+        }
+        
+        response["response"] += f"**Nåværende batteri:**\n"
+        response["response"] += f"- Type: {vehicle['battery_type']}\n"
+        response["response"] += f"- Kapasitet: {vehicle['battery_capacity_kwh']} kWh\n"
+        response["response"] += f"- Spenning: {vehicle['battery_voltage']}\n"
+        response["response"] += f"- Celle-type: {vehicle['battery_cells']}\n"
+        response["response"] += f"- Garanti: {vehicle['battery_warranty_years']} år eller {vehicle['battery_warranty_km']} km\n"
+        response["response"] += f"- Delenummer: {vehicle['battery_part_number']}\n\n"
+        
+        response["response"] += "**Kompatible batterier for utbytting:**\n"
+        for battery in vehicle['compatible_batteries']:
+            response["response"] += f"\n**{battery['brand']}**\n"
+            response["response"] += f"- Delenummer: {battery['part_number']}\n"
+            response["response"] += f"- Kapasitet: {battery['capacity_kwh']} kWh\n"
+            response["response"] += f"- Pris: {battery['price_nok']} NOK\n"
+            response["response"] += f"- Garanti: {battery['warranty']}\n"
+        
+        response["response"] += f"\n**Anbefaling:**\n"
+        if len(vehicle['compatible_batteries']) > 1:
+            oem_battery = next(b for b in vehicle['compatible_batteries'] if b['brand'] == vehicle['make'])
+            varta_battery = next(b for b in vehicle['compatible_batteries'] if b['brand'] == 'Varta')
+            
+            price_diff = oem_battery['price_nok'] - varta_battery['price_nok']
+            response["response"] += f"Jeg anbefaler {varta_battery['brand']} batteriet. Det koster {price_diff} NOK mindre enn OEM-batteriet ({varta_battery['price_nok']} NOK vs {oem_battery['price_nok']} NOK) og har samme garanti."
+        else:
+            response["response"] += f"Jeg anbefaler å bruke {vehicle['compatible_batteries'][0]['brand']} batteriet for best kompatibilitet."
+        
+        return response
+    else:
+        return {
+            "response": f"Beklager, jeg finner ikke informasjon om bil med registreringsnummer {reg_number} i min database.\n\nJeg har informasjon om følgende biler:\n"
+            + "\n".join([f"- {reg}: {data['make']} {data['model']}" for reg, data in VEHICLE_BATTERY_DB.items()]) + "\n\n"
+            + "Hvis du trenger informasjon om en annen bil, kan du kontakte oss direkte for en manuell oppslag.",
+            "status": "not_found"
+        }
+
+@app.post("/api/vehicle-battery")
+async def get_vehicle_battery(vehicle_data: VehicleLookup):
+    """API-endepunkt for å hente batteriinformasjon basert på registreringsnummer"""
+    return await get_battery_info_by_registration(vehicle_data.registration_number)
+
+@app.post("/api/vegvesen")
+async def vegvesen_lookup(data: dict):
+    registration_number = data.get("registration_number", "").upper()
+    if not registration_number:
+        raise HTTPException(status_code=400, detail="Registration number is required")
+    
+    # Simulerer Vegvesen-oppslag
+    # I en ekte implementasjon ville du kalt Vegvesen API her
+    return {
+        "registration_number": registration_number,
+        "vehicle_info": {
+            "make": "Tesla",
+            "model": "Model 3",
+            "year": 2023,
+            "battery_capacity": "75 kWh",
+            "range_wltp": "491 km",
+            "first_registration": "2023-03-15",
+            "owner": "Privatperson",
+            "next_inspection": "2027-03-15"
+        },
+        "status": "success"
+    }
+
+@app.post("/api/varta")
+async def varta_search(data: dict):
+    product_type = data.get("product_type", "")
+    vehicle_model = data.get("vehicle_model", "")
+    
+    # Simulerer Varta-produktsøk
+    # I en ekte implementasjon ville du kalt Varta API her
+    return {
+        "products": [
+            {
+                "name": "Varta Battery for Tesla Model 3",
+                "type": product_type or "Li-ion",
+                "compatible": True,
+                "price": "NOK 85,000",
+                "capacity": "75 kWh",
+                "warranty": "8 år eller 160,000 km",
+                "installation_time": "4-6 timer"
+            }
+        ],
+        "status": "success"
+    }
+
+@app.get("/")
+async def root():
+    return {"message": "Elbatt Chatbot API is running!"}
+
+@app.head("/")
+async def root_head():
+    return {}
+
+@app.get("/check-env")
+async def check_env():
+    return {
+        "openai_key_set": bool(os.getenv("OPENAI_API_KEY")),
+        "vegvesen_key_set": bool(os.getenv("VEGVESEN_API_KEY")),
+        "langflow_key_set": bool(os.getenv("LANGFLOW_API_KEY")),
+        "var1": os.getenv("VAR1"),
+        "var2": os.getenv("VAR2")
+    }
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

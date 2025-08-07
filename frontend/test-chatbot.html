@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elbatt Chatbot - v1754536019</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .chat-container {
+            width: 100%;
+            max-width: 900px;
+            height: 700px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .chat-header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+        
+        .chat-header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+        }
+        
+        .message.user {
+            justify-content: flex-end;
+        }
+        
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            line-height: 1.4;
+        }
+        
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .message.bot .message-content {
+            background: white;
+            color: #333;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            margin: 0 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .message.bot .message-avatar {
+            background: #e0e0e0;
+            color: #666;
+        }
+        
+        .chat-input {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .chat-input input {
+            flex: 1;
+            padding: 12px 16px !important;
+            border: 1px solid #e0e0e0 !important;
+            border-radius: 25px !important;
+            outline: none !important;
+            font-size: 14px !important;
+            /* Fjern ALLE begrensninger med !important */
+            max-width: none !important;
+            max-height: none !important;
+            min-width: 0 !important;
+            min-height: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            /* Fjern eventuelle andre begrensninger */
+            text-indent: 0 !important;
+            white-space: normal !important;
+            overflow: visible !important;
+            resize: none !important;
+        }
+        
+        .chat-input button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .example-questions {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 10px;
+        }
+        
+        .example-questions h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .example-question {
+            margin: 5px 0;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .example-question:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .debug-info {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 10000;
+        }
+    </style>
+</head>
+<body>
+    <!-- Debug info -->
+    <div class="debug-info" id="debugInfo">
+        Debug: Versjon 1754536019
+    </div>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>🔋 Elbatt Chatbot</h1>
+            <p>Din ekspert på bilbatterier og elbiler - Drevet av GLM-4.5</p>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot">
+                <div class="message-avatar">🤖</div>
+                <div class="message-content">
+                    <strong>Hei! Jeg er Elbatt Chatbot.</strong><br><br>
+                    Jeg kan hjelpe deg med:
+                    <br>• Finne riktig batteri til din bil
+                    <br>• Slå opp kjøretøyinformasjon fra Vegvesenet
+                    <br>• Sammenligne priser og produkter
+                    <br>• Gi personlige anbefalinger<br><br>
+                    Skriv inn et registreringsnummer (f.eks. SU18018) for å starte! 😊
+                </div>
+            </div>
+            
+            <div class="example-questions">
+                <h4>💡 Klikk på disse eksemplene:</h4>
+                <div class="example-question" onclick="askQuestion('SU18018')">
+                    📝 Slå opp bil med regnr SU18018
+                </div>
+                <div class="example-question" onclick="askQuestion('AB12345')">
+                    📝 Slå opp bil med regnr AB12345
+                </div>
+                <div class="example-question" onclick="askQuestion('Hvilket batteri passer til Tesla Model 3?')">
+                    🚗 Hvilket batteri passer til Tesla Model 3?
+                </div>
+            </div>
+        </div>
+        
+        <div class="chat-input">
+            <input type="text" id="userInput" placeholder="Skriv registreringsnummer eller spørsmål her..." />
+            <button id="sendButton" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        // Debug logging
+        function debugLog(message) {
+            console.log('[DEBUG]', message);
+            document.getElementById('debugInfo').innerHTML += '<br>' + message;
+        }
+        
+        debugLog('Script startet - Versjon 1754536019');
+        
+        let conversationHistory = [];
+        let isProcessing = false;
+        
+        // Initialize when page loads
+        window.addEventListener('load', function() {
+            debugLog('Page loaded event');
+            
+            const input = document.getElementById('userInput');
+            const button = document.getElementById('sendButton');
+            
+            if (!input) {
+                debugLog('ERROR: Input field not found!');
+                return;
+            }
+            
+            debugLog('Input field found');
+            
+            // Fjern ALLE mulige attributter som kan begrense input
+            input.removeAttribute('maxlength');
+            input.removeAttribute('max');
+            input.removeAttribute('size');
+            input.removeAttribute('minlength');
+            input.removeAttribute('min');
+            
+            // Sett attributter som tillater ubegrenset input
+            input.setAttribute('autocomplete', 'off');
+            input.setAttribute('autocorrect', 'off');
+            input.setAttribute('autocapitalize', 'off');
+            input.setAttribute('spellcheck', 'false');
+            
+            // Aktiver input og knapp
+            input.disabled = false;
+            button.disabled = false;
+            
+            // Fokuser på input
+            input.focus();
+            
+            debugLog('Input field initialized');
+            debugLog('Input max length: ' + input.maxLength);
+            debugLog('Input attributes: ' + input.getAttributeNames());
+            
+            // Test input med SU18018
+            setTimeout(() => {
+                input.value = 'SU18018';
+                debugLog('Test value set to: ' + input.value);
+                input.setSelectionRange(input.value.length, input.value.length);
+            }, 1000);
+        });
+        
+        function askQuestion(question) {
+            debugLog('askQuestion called with: ' + question);
+            const input = document.getElementById('userInput');
+            if (input) {
+                input.value = question;
+                debugLog('Input set to: ' + input.value);
+                sendMessage();
+            } else {
+                debugLog('ERROR: Input field not found in askQuestion');
+            }
+        }
+        
+        async function sendMessage() {
+            if (isProcessing) return;
+            
+            const userInput = document.getElementById('userInput');
+            const sendButton = document.getElementById('sendButton');
+            
+            if (!userInput) {
+                debugLog('ERROR: Input field not found in sendMessage');
+                return;
+            }
+            
+            const message = userInput.value.trim();
+            debugLog('Sending message: "' + message + '" (length: ' + message.length + ')');
+            
+            if (!message) return;
+            
+            isProcessing = true;
+            
+            // Add user message to chat
+            addMessage(message, 'user');
+            conversationHistory.push({role: 'user', content: message});
+            
+            // Clear input and disable
+            userInput.value = '';
+            userInput.disabled = true;
+            sendButton.disabled = true;
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        conversation_history: conversationHistory
+                    })
+                });
+                
+                const data = await response.json();
+                addMessage(data.response, 'bot');
+                conversationHistory.push({role: 'assistant', content: data.response});
+                
+            } catch (error) {
+                debugLog('Error: ' + error.message);
+                addMessage('Beklager, det oppstod en feil.', 'bot');
+            } finally {
+                userInput.disabled = false;
+                sendButton.disabled = false;
+                userInput.focus();
+                isProcessing = false;
+            }
+        }
+        
+        function addMessage(content, sender) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message ' + sender;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = sender === 'user' ? '👤' : '🤖';
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            messageContent.innerHTML = content.replace(/\n/g, '<br>');
+            
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(messageContent);
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            debugLog('DOMContentLoaded event');
+            
+            const input = document.getElementById('userInput');
+            if (input) {
+                // Input change event for debugging
+                input.addEventListener('input', function(e) {
+                    debugLog('Input changed: "' + e.target.value + '" (length: ' + e.target.value.length + ')');
+                });
+                
+                // Key events
+                input.addEventListener('keydown', function(e) {
+                    debugLog('Keydown: ' + e.key + ' (keyCode: ' + e.keyCode + ')');
+                });
+                
+                input.addEventListener('keyup', function(e) {
+                    debugLog('Keyup: ' + e.key + ' (keyCode: ' + e.keyCode + ')');
+                });
+                
+                // Enter key to send
+                input.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        debugLog('Enter key pressed, sending message');
+                        sendMessage();
+                    }
+                });
+                
+                debugLog('Event listeners added');
+            } else {
+                debugLog('ERROR: Could not find input field in DOMContentLoaded');
+            }
+        });
+        
+        // Additional check for input field
+        setTimeout(() => {
+            const input = document.getElementById('userInput');
+            if (input) {
+                debugLog('Delayed check - input field exists');
+                debugLog('Input value: "' + input.value + '"');
+                debugLog('Input maxLength: ' + input.maxLength);
+            } else {
+                debugLog('ERROR: Input field still not found after timeout');
+            }
+        }, 2000);
+    </script>
+</body>
+</html>
