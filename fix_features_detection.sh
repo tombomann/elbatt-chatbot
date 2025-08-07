@@ -1,3 +1,16 @@
+#!/bin/bash
+
+echo "Fikser funksjonsdeteksjon i session_summary.py..."
+
+# Først, la oss se hva som faktisk er i GLM-4.5-FEATURES.md
+echo "Innhold i GLM-4.5-FEATURES.md:"
+echo "================================"
+head -20 GLM-4.5-FEATURES.md
+echo "================================"
+echo ""
+
+# Oppdater session_summary.py med en forbedret get_current_features funksjon
+cat > backend/session_summary.py << 'PYEOF'
 import os
 import json
 import re
@@ -93,3 +106,17 @@ if __name__ == "__main__":
     print(f"Recent changes: {len(summary['recent_changes'])}")
     print(f"TODO items: {len(summary['todo_items'])}")
     print(f"API endpoints: {len(summary['api_endpoints'])}")
+PYEOF
+
+echo "session_summary.py oppdatert med forbedret funksjonsdeteksjon"
+
+echo "Tester ny funksjon..."
+python3 -c "
+import sys
+sys.path.append('backend')
+from session_summary import get_current_features
+features = get_current_features()
+print(f'Fant {len(features)} funksjoner:')
+for i, feature in enumerate(features, 1):
+    print(f'{i}. {feature}')
+"
