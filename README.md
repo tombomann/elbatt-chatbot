@@ -6,6 +6,18 @@
 [![GLM-4.5 Ready](https://img.shields.io/badge/GLM--4.5-Ready-brightgreen)](https://github.com/tombomann/elbatt-chatbot)
 
 En avansert AI-drevet chatbot for elbatt.no med integrasjon mot Vegvesen, Varta og OpenAI. Spesielt optimalisert for GLM-4.5 og moderne AI-verktøy.
+
 ## 🚀 Superrask Oppsett for GLM-4.5
 
 For å komme raskt i gang med en ny chat i GLM-4.5, følg disse stegene:
+
+### 1. Klon repoet
+```bash
+git clone https://github.com/tombomann/elbatt-chatbot.git
+cd elbatt-chatbot
+
+
+
+
+
+

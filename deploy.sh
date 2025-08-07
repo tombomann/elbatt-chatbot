@@ -1,18 +1,20 @@
 #!/bin/bash
 set -e
 
-echo "Oppdaterer repo..."
-cd /root/elbatt-chatbot
+echo "🚀 Starting deployment..."
 git pull origin main
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
 
-echo "Laster ned backup fra S3..."
-python3 /root/elbatt-chatbot/scripts/restore_from_s3.py
+echo "⏳ Waiting for services to be healthy..."
+sleep 10
 
-echo "Importer chatflow til Langflow..."
-python3 /root/elbatt-chatbot/scripts/import_from_s3.py
+if curl -f http://localhost:8000/api/health > /dev/null 2>&1; then
+    echo "✅ Backend is healthy"
+else
+    echo "❌ Backend is not healthy"
+    exit 1
+fi
 
-echo "Starter backend og Langflow tjenester..."
-systemctl restart elbatt-backend.service
-systemctl restart langflow.service
-
-echo "Deploy fullført."
+echo "🎉 Deployment completed successfully!"
