@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin-backend
+  namespace: elbatt
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: admin-backend
+  template:
+    metadata:
+      labels:
+        app: admin-backend
+    spec:
+      containers:
+      - name: admin-backend
+        image: rg.fr-par.scw.cloud/elbatt/admin-backend:latest
+        ports:
+        - containerPort: 8002
+        resources:
+          limits:
+            cpu: "200m"
+            memory: "256Mi"
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin-backend-service
+  namespace: elbatt
+spec:
+  selector:
+    app: admin-backend
+  ports:
+  - port: 8002
+    targetPort: 8002

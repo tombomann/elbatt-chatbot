@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chatbot-frontend
+  namespace: elbatt
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chatbot-frontend
+  template:
+    metadata:
+      labels:
+        app: chatbot-frontend
+    spec:
+      containers:
+      - name: chatbot-frontend
+        image: rg.fr-par.scw.cloud/elbatt/chatbot-frontend:latest
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: "100m"
+            memory: "128Mi"
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chatbot-frontend-service
+  namespace: elbatt
+spec:
+  selector:
+    app: chatbot-frontend
+  ports:
+  - port: 80
+    targetPort: 80
