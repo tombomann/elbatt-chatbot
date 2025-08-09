@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: elbatt-ingress-test
+  namespace: elbatt
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - chatbot.elbatt.no
+    secretName: elbatt-tls
+  rules:
+  - host: chatbot.elbatt.no
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: chatbot-frontend-service
+            port:
+              number: 80
+      - path: /api/chat
+        pathType: Exact
+        backend:
+          service:
+            name: chatbot-backend-service
+            port:
+              number: 8000
