@@ -18,17 +18,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Modell for chat-meldinger
 class ChatMessage(BaseModel):
     message: str
+
 
 @app.get("/")
 async def root():
     return {"message": "Elbatt Chatbot API"}
 
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
 
 @app.post("/api/chat")
 async def chat(chat_message: ChatMessage):
@@ -40,6 +44,8 @@ async def chat(chat_message: ChatMessage):
     except Exception as e:
         return {"error": str(e)}
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

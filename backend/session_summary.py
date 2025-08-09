@@ -3,43 +3,54 @@ import json
 import re
 from datetime import datetime
 
+
 def get_current_features():
     """Henter liste over implementerte funksjoner"""
     try:
         with open("GLM-4.5-FEATURES.md", "r") as f:
             content = f.read()
             features = []
-            
+
             # Finn seksjonen "Implementerte Funksjoner"
             in_features_section = False
-            for line in content.split('\n'):
+            for line in content.split("\n"):
                 # Sjekk om vi er i "Implementerte Funksjoner" seksjonen
                 if "Implementerte Funksjoner" in line:
                     in_features_section = True
                     continue
-                
+
                 # Hvis vi kommer til en ny seksjon, stopp
-                if in_features_section and line.strip().startswith('-') and "Funksjoner" in line:
+                if (
+                    in_features_section
+                    and line.strip().startswith("-")
+                    and "Funksjoner" in line
+                ):
                     break
-                
+
                 # Samle funksjoner i denne seksjonen
-                if in_features_section and ('- [x]' in line or '✓' in line):
+                if in_features_section and ("- [x]" in line or "✓" in line):
                     # Fjern markdown og whitespace
-                    feature = re.sub(r'^[\s\-\*\✓\[\]x]+', '', line).strip()
+                    feature = re.sub(r"^[\s\-\*\✓\[\]x]+", "", line).strip()
                     if feature:
                         features.append(feature)
-            
-            return features if features else ["Ingen funksjoner funnet i GLM-4.5-FEATURES.md"]
+
+            return (
+                features
+                if features
+                else ["Ingen funksjoner funnet i GLM-4.5-FEATURES.md"]
+            )
     except FileNotFoundError:
         return ["Kunne ikke finne GLM-4.5-FEATURES.md"]
+
 
 def get_recent_changes():
     """Henter nylige endringer fra git"""
     try:
         result = os.popen("git log --oneline -10").read().strip()
-        return result.split('\n') if result else []
+        return result.split("\n") if result else []
     except:
         return ["Kunne ikke hente git-logg"]
+
 
 def get_todo_items():
     """Henter TODO-elementer fra prosjektet"""
@@ -57,34 +68,39 @@ def get_todo_items():
         pass
     return todos if todos else ["Ingen TODO-elementer funnet"]
 
+
 def get_api_endpoints():
     """Henter API-endepunkter fra main.py"""
     try:
         with open("backend/main.py", "r") as f:
             content = f.read()
             endpoints = []
-            for line in content.split('\n'):
-                if '@app.' in line and ('get' in line or 'post' in line):
+            for line in content.split("\n"):
+                if "@app." in line and ("get" in line or "post" in line):
                     endpoints.append(line.strip())
             return endpoints
     except FileNotFoundError:
         return ["Kunne ikke finne backend/main.py"]
 
+
 def create_session_summary():
     """Lager et sammendrag av nåværende prosjektstatus"""
     summary = {
         "timestamp": datetime.now().isoformat(),
-        "last_commit": os.popen("git log -1 --pretty=format:'%h - %s (%cr)'").read().strip(),
+        "last_commit": os.popen("git log -1 --pretty=format:'%h - %s (%cr)'")
+        .read()
+        .strip(),
         "features": get_current_features(),
         "recent_changes": get_recent_changes(),
         "todo_items": get_todo_items(),
-        "api_endpoints": get_api_endpoints()
+        "api_endpoints": get_api_endpoints(),
     }
-    
+
     with open("session_summary.json", "w") as f:
         json.dump(summary, f, indent=2)
-    
+
     return summary
+
 
 if __name__ == "__main__":
     summary = create_session_summary()
