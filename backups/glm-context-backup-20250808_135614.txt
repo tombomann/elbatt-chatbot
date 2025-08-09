@@ -1,0 +1,47 @@
+# GLM-4.5 Kontekst for elbatt-chatbot
+
+## Prosjektstatus
+97083996 - GLM-4.5 økt: (10 hours ago)
+
+## Viktige Filer
+- backend/main.py: Hoved-API med FastAPI
+- backend/admin_service.py: Admin backend med overvåking
+- backend/monitoring_service.py: Overvåkningstjenester
+- docker-compose.yml: Container-oppsett for originalt system
+- docker-compose.admin.yml: Container-oppsett for admin dashboard
+- GLM-4.5-FEATURES.md: Funksjonsoversikt
+
+## Nåværende Systemer
+- Originalt chatbot: http://localhost:8000 (Backend) + http://localhost:3001 (Frontend)
+- Admin dashboard: http://localhost:3002 (Frontend) + http://localhost:8002 (Backend)
+- Redis: Port 6379
+
+## Implementerte Funksjoner
+
+
+## Systemovervåking
+- Docker container overvåking
+- Port status monitoring
+- Systemhelse (CPU, minne, disk)
+- Chat-analyse og statistikk
+- Kundeinnsikt og segmentering
+- Automatiske anbefalinger
+
+## Neste Steg
+- Fullfør implementering av overvåkningssystem
+- Test på Scaleway infrastruktur
+- Optimaliser ytelse og sikkerhet
+- Utvid med flere API-integrasjoner
+
+## Viktige Beslutninger
+- Bruker FastAPI for backend
+- Redis for caching og session management
+- Docker for containerisering
+- React for admin frontend
+- GLM-4.5 for AI-funksjonalitet
+
+## Teknisk Stack
+- Backend: Python, FastAPI, Redis
+- Frontend: React, Nginx
+- Infrastruktur: Docker, Scaleway
+- Overvåking: Egenutviklet system med psutil, docker API
