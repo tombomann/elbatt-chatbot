@@ -1,14 +1,16 @@
+cat > k8s/ingress.yaml <<'YAML'
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: elbatt-ingress
   namespace: elbatt
   annotations:
-    kubernetes.io/ingress.class: nginx
     cert-manager.io/cluster-issuer: letsencrypt
 spec:
+  ingressClassName: nginx
   tls:
-    - hosts: [chatbot.elbatt.no]
+    - hosts:
+        - chatbot.elbatt.no
       secretName: elbatt-tls
   rules:
     - host: chatbot.elbatt.no
@@ -19,43 +21,20 @@ spec:
             backend:
               service:
                 name: chatbot-backend-service
-                port: { number: 8000 }
+                port:
+                  number: 8000
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: chatbot-backend-service
+                port:
+                  number: 8000
           - path: /
             pathType: Prefix
             backend:
               service:
                 name: chatbot-frontend-service
-                port: { number: 80 }
-- path: /health
-  pathType: Prefix
-  backend:
-    service:
-      name: chatbot-backend-service
-      port:
-        number: 8000
-@@
-   rules:
-     - host: chatbot.elbatt.no
-       http:
-         paths:
-           - path: /api
-             pathType: Prefix
-             backend:
-               service:
-                 name: chatbot-backend-service
-                 port:
-                   number: 8000
-+          - path: /health
-+            pathType: Prefix
-+            backend:
-+              service:
-+                name: chatbot-backend-service
-+                port:
-+                  number: 8000
-           - path: /
-             pathType: Prefix
-             backend:
-               service:
-                 name: chatbot-frontend-service
-                 port:
-                   number: 80
+                port:
+                  number: 80
+YAML
