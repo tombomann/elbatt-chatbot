@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: elbatt-quota
+  namespace: elbatt
+spec:
+  hard:
+    pods: "20"
+    requests.cpu: "1500m"
+    requests.memory: "2Gi"
+    limits.cpu: "3000m"
+    limits.memory: "4Gi"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: elbatt-defaults
+  namespace: elbatt
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: "200m"
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "50m"
+        memory: "128Mi"
