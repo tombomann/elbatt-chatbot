@@ -1,46 +1,49 @@
 apiVersion: apps/v1
 kind: Deployment
-metadata: { name: elbatt-backend, namespace: elbatt }
+metadata:
+  name: chatbot-backend
+  namespace: elbatt
 spec:
-  replicas: 2
-  selector: { matchLabels: { app: elbatt-backend } }
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chatbot-backend
   template:
-    metadata: { labels: { app: elbatt-backend } }
+    metadata:
+      labels:
+        app: chatbot-backend
     spec:
       containers:
-      - name: api
-        image: <REGISTRY>/elbatt-backend:<SHA>
-        ports: [{ containerPort: 8000 }]
-        env:
-        - name: LLM_PROVIDER   ; value: "openai"
-        - name: OPENAI_MODEL   ; value: "gpt-4o"
-        - name: OPENAI_API_KEY ; valueFrom: { secretKeyRef: { name: openai, key: OPENAI_API_KEY } }
-        - name: REDIS_URL      ; value: "redis://redis:6379/0"
-        readinessProbe: { httpGet: { path: /health, port: 8000 }, periodSeconds: 5, initialDelaySeconds: 5 }
-        resources: { requests: { cpu: "100m", memory: "256Mi" }, limits: { cpu: "500m", memory: "512Mi" } }
-@@
-       containers:
--        - name: chatbot-backend
-+        - name: chatbot-backend
-           image: rg.fr-par.scw.cloud/elbatt/chatbot-backend:latest
-           ports:
-             - containerPort: 8000
-+          readinessProbe:
-+            httpGet:
-+              path: /health
-+              port: 8000
-+            initialDelaySeconds: 5
-+            periodSeconds: 5
-+          livenessProbe:
-+            httpGet:
-+              path: /health
-+              port: 8000
-+            initialDelaySeconds: 15
-+            periodSeconds: 10
-+          resources:
-+            requests:
-+              cpu: "50m"
-+              memory: "256Mi"
-+            limits:
-+              cpu: "200m"
-+              memory: "512Mi"
+        - name: chatbot-backend
+          image: rg.fr-par.scw.cloud/elbatt/chatbot-backend:latest
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "256Mi"
+            limits:
+              cpu: "200m"
+              memory: "512Mi"
+          env:
+            - name: LLM_PROVIDER
+              value: "openai"
+            - name: OPENAI_MODEL
+              value: "gpt-4o"
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-secrets
+                  key: OPENAI_API_KEY
