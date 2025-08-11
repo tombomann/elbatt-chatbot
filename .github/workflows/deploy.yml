@@ -1,49 +1,102 @@
-# Lag .github/workflows/deploy.yml
-cat > .github/workflows/deploy.yml << 'EOF'
-name: Deploy to Production
+name: Build & Deploy to Scaleway K8s
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   workflow_dispatch:
 
+env:
+  REGISTRY: rg.fr-par.scw.cloud/elbatt
+  CLUSTER_NAMESPACE: elbatt
+  KUBECONFIG_FILE: kubeconfig.yaml
+  HEALTH_URL: https://chatbot.elbatt.no/health
+
 jobs:
-  deploy:
+  build-and-push:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Set up environment
+
+      - name: Login to Scaleway Registry
         run: |
-          echo "REDIS_HOST=redis" >> .env
-          echo "REDIS_PORT=6379" >> .env
-          echo "REDIS_PASSWORD=" >> .env
-          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
-          echo "VEGVESEN_API_KEY=${{ secrets.VEGVESEN_API_KEY }}" >> .env
-          echo "LANGFLOW_API_KEY=${{ secrets.LANGFLOW_API_KEY }}" >> .env
-          echo "SCW_ACCESS_KEY=${{ secrets.SCW_ACCESS_KEY }}" >> .env
-          echo "SCW_SECRET_KEY=${{ secrets.SCW_SECRET_KEY }}" >> .env
-          echo "SCW_DEFAULT_ORGANIZATION_ID=${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}" >> .env
-          echo "SCW_DEFAULT_PROJECT_ID=${{ secrets.SCW_DEFAULT_PROJECT_ID }}" >> .env
-          echo "SCW_ORGANIZATION_ID=${{ secrets.SCW_ORGANIZATION_ID }}" >> .env
-          echo "SCW_PROJECT_ID=${{ secrets.SCW_PROJECT_ID }}" >> .env
-          echo "ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }}" >> .env
-          echo "STATIC_DIR=${{ secrets.STATIC_DIR }}" >> .env
-          echo "ASSETS_DIR=${{ secrets.ASSETS_DIR }}" >> .env
-          echo "SENTRY_ORG=${{ secrets.SENTRY_ORG }}" >> .env
-          echo "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" >> .env
-          echo "SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}" >> .env
-          echo "GH_PAT=${{ secrets.GH_PAT }}" >> .env
-          echo "NETLIFY_AUTH_TOKEN=${{ secrets.NETLIFY_AUTH_TOKEN }}" >> .env
-          echo "NETLIFY_SITE_ID=${{ secrets.NETLIFY_SITE_ID }}" >> .env
-          
-      - name: Build and deploy
+          echo "${{ secrets.SCW_REGISTRY_PASSWORD }}" | docker login $REGISTRY -u "${{ secrets.SCW_REGISTRY_USERNAME }}" --password-stdin
+
+      - name: Build & Push images
         run: |
-          docker-compose down
-          docker-compose up --build -d
-          
-      - name: Health check
+          set -e
+          TAG=${GITHUB_SHA::7}
+          # Tilpass byggestier etter repo-struktur
+          docker build -t $REGISTRY/chatbot-backend:$TAG   -f backend/Dockerfile      .
+          docker build -t $REGISTRY/admin-backend:$TAG     -f admin-backend/Dockerfile .
+          docker build -t $REGISTRY/chatbot-frontend:$TAG  -f chatbot-frontend/Dockerfile .
+          docker build -t $REGISTRY/admin-frontend:$TAG    -f admin-frontend/Dockerfile .
+          docker push $REGISTRY/chatbot-backend:$TAG
+          docker push $REGISTRY/admin-backend:$TAG
+          docker push $REGISTRY/chatbot-frontend:$TAG
+          docker push $REGISTRY/admin-frontend:$TAG
+
+      - name: Export image tags
+        id: tags
+        run: echo "TAG=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write kubeconfig
         run: |
-          sleep 30
-          curl -f http://localhost:8000/api/health || exit 1
-EOF
+          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > $KUBECONFIG_FILE
+          chmod 600 $KUBECONFIG_FILE
+        shell: bash
+
+      - name: Set kubectl context
+        run: |
+          export KUBECONFIG=$KUBECONFIG_FILE
+          kubectl cluster-info
+        shell: bash
+
+      - name: Update images
+        env:
+          TAG: ${{ needs.build-and-push.outputs.TAG }}
+        run: |
+          set -e
+          export KUBECONFIG=$KUBECONFIG_FILE
+          kubectl -n $CLUSTER_NAMESPACE set image deploy/chatbot-backend   chatbot-backend=$REGISTRY/chatbot-backend:$TAG
+          kubectl -n $CLUSTER_NAMESPACE set image deploy/admin-backend     admin-backend=$REGISTRY/admin-backend:$TAG
+          kubectl -n $CLUSTER_NAMESPACE set image deploy/chatbot-frontend  chatbot-frontend=$REGISTRY/chatbot-frontend:$TAG
+          kubectl -n $CLUSTER_NAMESPACE set image deploy/admin-frontend    admin-frontend=$REGISTRY/admin-frontend:$TAG
+
+      - name: Wait for rollout
+        run: |
+          set -e
+          export KUBECONFIG=$KUBECONFIG_FILE
+          for d in chatbot-backend admin-backend chatbot-frontend admin-frontend; do
+            kubectl -n $CLUSTER_NAMESPACE rollout status deploy/$d
+          done
+
+      - name: Health gate (external)
+        id: health
+        run: |
+          set -e
+          for i in {1..10}; do
+            code=$(curl -k -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" || true)
+            if [ "$code" = "200" ]; then
+              echo "OK ($code)"; exit 0
+            fi
+            echo "Try $i: got $code, retrying..."
+            sleep 6
+          done
+          echo "Health check failed"
+          exit 1
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          set -e
+          export KUBECONFIG=$KUBECONFIG_FILE
+          for d in chatbot-backend admin-backend chatbot-frontend admin-frontend; do
+            kubectl -n $CLUSTER_NAMESPACE rollout undo deploy/$d || true
+          done
+          exit 1
