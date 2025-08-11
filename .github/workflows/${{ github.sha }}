@@ -1,0 +1,2 @@
+kubectl -n elbatt set image deploy/chatbot-backend \
+  api=rg.fr-par.scw.cloud/elbatt/chatbot-backend:<DIN_TAGG>
