@@ -1,0 +1,63 @@
+name: Deploy to Kubernetes
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+      
+    - name: Login to Scaleway Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: rg.fr-par.scw.cloud
+        username: ${{ secrets.SCALEWAY_ACCESS_KEY }}
+        password: ${{ secrets.SCALEWAY_SECRET_KEY }}
+        
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: true
+        tags: rg.fr-par.scw.cloud/elbatt/chatbot-backend:latest
+        
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: '1.28.0'
+        
+    - name: Configure kubeconfig
+      run: |
+        mkdir -p $HOME/.kube
+        echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+        
+    - name: Update Kubernetes secrets
+      run: |
+        kubectl create secret generic glm-secrets \
+          --from-literal=GLM_API_KEY="${{ secrets.GLM_API_KEY }}" \
+          --from-literal=GLM_BASE_URL="${{ secrets.GLM_BASE_URL }}" \
+          --from-literal=GLM_MODEL="${{ secrets.GLM_MODEL }}" \
+          --from-literal=GLM_MAX_TOKENS="${{ secrets.GLM_MAX_TOKENS }}" \
+          --from-literal=GLM_TEMPERATURE="${{ secrets.GLM_TEMPERATURE }}" \
+          -n elbatt --dry-run=client -o yaml | kubectl apply -f -
+          
+        kubectl create secret generic openai-secrets \
+          --from-literal=OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
+          --from-literal=OPENAI_BASE_URL="${{ secrets.OPENAI_BASE_URL }}" \
+          --from-literal=CHATGPT_MODEL="${{ secrets.CHATGPT_MODEL }}" \
+          --from-literal=CHATGPT_MAX_TOKENS="${{ secrets.CHATGPT_MAX_TOKENS }}" \
+          --from-literal=CHATGPT_TEMPERATURE="${{ secrets.CHATGPT_TEMPERATURE }}" \
+          -n elbatt --dry-run=client -o yaml | kubectl apply -f -
+        
+    - name: Deploy to Kubernetes
+      run: |
+        kubectl apply -f k8s/
+        kubectl rollout restart deployment -n elbatt chatbot-backend
