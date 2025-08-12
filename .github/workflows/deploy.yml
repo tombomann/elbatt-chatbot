@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # for å committe tag-bumps når vi bygger på main
+  contents: write   # for å committe YAML tag-bumps på main
 
 env:
   REGISTRY: rg.fr-par.scw.cloud/elbatt
@@ -32,8 +32,7 @@ jobs:
           echo "${{ secrets.SCW_SECRET_KEY }}" \
             | docker login $REGISTRY -u "${{ secrets.SCW_ACCESS_KEY }}" --password-stdin
 
-      # Bygger/pusher alle fire bilder (matrix)
-      - name: Build & Push
+      - name: Build & Push (matrix)
         uses: docker/build-push-action@v6
         with:
           context: .
