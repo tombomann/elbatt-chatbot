@@ -15,9 +15,16 @@ spec:
     spec:
       containers:
         - name: admin-backend
-          image: rg.fr-par.scw.cloud/elbatt/admin-backend:latest
+          image: rg.fr-par.scw.cloud/elbatt/admin-backend:12572ff4
           ports:
             - containerPort: 8002
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "150m"
+              memory: "256Mi"
           readinessProbe:
             httpGet:
               path: /health
@@ -30,10 +37,9 @@ spec:
               port: 8002
             initialDelaySeconds: 15
             periodSeconds: 10
-          resources:
-            requests:
-              cpu: "50m"
-              memory: "128Mi"
-            limits:
-              cpu: "150m"
-              memory: "256Mi"
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8002
+            failureThreshold: 30
+            periodSeconds: 2
