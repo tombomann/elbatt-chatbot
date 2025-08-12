@@ -2,121 +2,191 @@ name: Build & Deploy to Scaleway K8s
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
-  contents: write   # for å committe YAML tag-bumps på main
+  contents: write   # for å committe tag-bumps
 
 env:
   REGISTRY: rg.fr-par.scw.cloud/elbatt
-  NAMESPACE: elbatt
+  K8S_DIR: k8s
+  KUBECONFIG_FILE: kubeconfig.yaml
+  HEALTH_URL: https://chatbot.elbatt.no/health
+  API_HEALTH_URL: https://chatbot.elbatt.no/api/health
 
 jobs:
-  build-and-push:
+  deploy:
     runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.meta.outputs.tag }}
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: Compute image tag
-        id: meta
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute tag
+        id: tag
         run: |
-          TAG="$(git rev-parse --short HEAD)"
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "TAG=$TAG" >> $GITHUB_ENV
+          if [[ "${GITHUB_REF##*/}" == "main" ]]; then
+            echo "TAG=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          else
+            # branch-kortnavn + SHA for PR/feature-branches
+            SAFE_BRANCH="${GITHUB_REF_NAME//[^a-zA-Z0-9._-]/-}"
+            echo "TAG=${SAFE_BRANCH}-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+          echo "TAG=$(
+            grep TAG "$GITHUB_OUTPUT" || true
+          )"
 
       - name: Login to Scaleway Container Registry
-        run: |
-          echo "${{ secrets.SCW_SECRET_KEY }}" \
-            | docker login $REGISTRY -u "${{ secrets.SCW_ACCESS_KEY }}" --password-stdin
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          # For SCR funker ofte Access/Secret Key som brukernavn/passord
+          username: ${{ secrets.SCW_ACCESS_KEY }}
+          password: ${{ secrets.SCW_SECRET_KEY }}
 
-      - name: Build & Push (matrix)
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # --- Build & push images ---
+      - name: Build & push chatbot-backend
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ${{ matrix.file }}
+          file: backend/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ matrix.name }}:${{ env.TAG }}
-        strategy:
-          fail-fast: false
-          matrix:
-            include:
-              - { name: chatbot-backend,  file: backend/Dockerfile }
-              - { name: admin-backend,    file: backend/Dockerfile.admin }
-              - { name: chatbot-frontend, file: chatbot-frontend/Dockerfile }
-              - { name: admin-frontend,   file: admin-frontend/Dockerfile }
+          tags: ${{ env.REGISTRY }}/chatbot-backend:${{ steps.tag.outputs.TAG }}
 
-      - name: Install yq
-        run: sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.2/yq_linux_amd64 && sudo chmod +x /usr/local/bin/yq
+      - name: Build & push admin-backend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile.admin
+          push: true
+          tags: ${{ env.REGISTRY }}/admin-backend:${{ steps.tag.outputs.TAG }}
 
-      - name: Bump image tags in k8s manifests
+      - name: Build & push chatbot-frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: chatbot-frontend
+          file: chatbot-frontend/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/chatbot-frontend:${{ steps.tag.outputs.TAG }}
+
+      - name: Build & push admin-frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: admin-frontend
+          file: admin-frontend/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/admin-frontend:${{ steps.tag.outputs.TAG }}
+
+      # --- Installer verktøy ---
+      - name: Install yq & kubectl & curl
         run: |
-          export TAG="${{ steps.meta.outputs.tag }}"
-          export REG="${{ env.REGISTRY }}"
-          yq -i '(.spec.template.spec.containers[] | select(.name=="chatbot-backend").image)   = env(REG)+"/chatbot-backend:"+env(TAG)'   k8s/deployment-backend.yaml
-          yq -i '(.spec.template.spec.containers[] | select(.name=="admin-backend").image)     = env(REG)+"/admin-backend:"+env(TAG)'     k8s/deployment-admin-backend.yaml
-          yq -i '(.spec.template.spec.containers[] | select(.name=="chatbot-frontend").image)  = env(REG)+"/chatbot-frontend:"+env(TAG)'  k8s/deployment-chatbot-frontend.yaml
-          yq -i '(.spec.template.spec.containers[] | select(.name=="admin-frontend").image)    = env(REG)+"/admin-frontend:"+env(TAG)'    k8s/deployment-admin-frontend.yaml
+          set -euo pipefail
+          sudo curl -L "https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64" -o /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+          curl -L -o kubectl "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/kubectl
+          kubectl version --client=true
 
-      - name: Commit manifest tag bumps (main only)
+      - name: Bump image tags in manifests
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.tag.outputs.TAG }}"
+          yq -i '.spec.template.spec.containers[] |=
+            ( select(.name == "chatbot-backend").image = "'"$REGISTRY"'/chatbot-backend:'"$TAG"'" // . )' $K8S_DIR/deployment-backend.yaml
+
+          yq -i '.spec.template.spec.containers[] |=
+            ( select(.name == "admin-backend").image = "'"$REGISTRY"'/admin-backend:'"$TAG"'" // . )' $K8S_DIR/deployment-admin-backend.yaml
+
+          yq -i '.spec.template.spec.containers[] |=
+            ( select(.name == "chatbot-frontend").image = "'"$REGISTRY"'/chatbot-frontend:'"$TAG"'" // . )' $K8S_DIR/deployment-chatbot-frontend.yaml
+
+          yq -i '.spec.template.spec.containers[] |=
+            ( select(.name == "admin-frontend").image = "'"$REGISTRY"'/admin-frontend:'"$TAG"'" // . )' $K8S_DIR/deployment-admin-frontend.yaml
+
+          echo "Diff after yq:"
+          git --no-pager diff -- $K8S_DIR || true
+
+      - name: Commit manifest tag bumps
         if: ${{ github.ref == 'refs/heads/main' }}
         run: |
+          set -euo pipefail
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add k8s/deployment-*.yaml
-          git commit -m "ci: bump images to tag $TAG" || echo "No changes"
+          git add $K8S_DIR/deployment-*.yaml
+          git commit -m "ci: bump images to tag ${{ steps.tag.outputs.TAG }}" || echo "No changes to commit"
           git push
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build-and-push
-    env:
-      TAG: ${{ needs.build-and-push.outputs.tag }}
-    steps:
-      - uses: actions/checkout@v4
-
+      # --- Kubeconfig from secret ---
       - name: Write kubeconfig from secret
         run: |
-          echo '${{ secrets.KUBECONFIG_B64 }}' | base64 -d > kubeconfig-ci.yaml
-          chmod 600 kubeconfig-ci.yaml
-          echo "KUBECONFIG=$PWD/kubeconfig-ci.yaml" >> $GITHUB_ENV
+          set -euo pipefail
+          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > "$KUBECONFIG_FILE"
+          chmod 600 "$KUBECONFIG_FILE"
 
-      - name: Kubectl version
-        run: kubectl version --client=true
-
-      - name: Dry-run manifests
+      - name: kubectl apply
+        env:
+          KUBECONFIG: ${{ github.workspace }}/kubeconfig.yaml
         run: |
-          kubectl -n $NAMESPACE apply --dry-run=client -f k8s/deployment-backend.yaml
-          kubectl -n $NAMESPACE apply --dry-run=client -f k8s/deployment-admin-backend.yaml
-          kubectl -n $NAMESPACE apply --dry-run=client -f k8s/deployment-chatbot-frontend.yaml
-          kubectl -n $NAMESPACE apply --dry-run=client -f k8s/deployment-admin-frontend.yaml
-          kubectl -n $NAMESPACE apply --dry-run=client -f k8s/ingress.yaml
+          set -euo pipefail
+          kubectl -n elbatt apply -f $K8S_DIR/deployment-backend.yaml
+          kubectl -n elbatt apply -f $K8S_DIR/deployment-admin-backend.yaml
+          kubectl -n elbatt apply -f $K8S_DIR/deployment-chatbot-frontend.yaml
+          kubectl -n elbatt apply -f $K8S_DIR/deployment-admin-frontend.yaml
+          # Ingress kan også ligge her om ønskelig:
+          if [[ -f "$K8S_DIR/ingress.yaml" ]]; then
+            kubectl -n elbatt apply -f $K8S_DIR/ingress.yaml
+          fi
 
-      - name: Apply manifests
+      - name: Wait for rollouts
+        env:
+          KUBECONFIG: ${{ github.workspace }}/kubeconfig.yaml
         run: |
-          set -e
-          kubectl -n $NAMESPACE apply -f k8s/deployment-backend.yaml
-          kubectl -n $NAMESPACE apply -f k8s/deployment-admin-backend.yaml
-          kubectl -n $NAMESPACE apply -f k8s/deployment-chatbot-frontend.yaml
-          kubectl -n $NAMESPACE apply -f k8s/deployment-admin-frontend.yaml
-          kubectl -n $NAMESPACE apply -f k8s/ingress.yaml
+          set -euo pipefail
+          for d in chatbot-backend admin-backend chatbot-frontend admin-frontend; do
+            echo "Waiting for rollout: $d"
+            kubectl -n elbatt rollout status deploy/$d --timeout=180s
+          done
 
-      - name: Wait for rollout
+      # --- Eksterne smoke-tester ---
+      - name: External smoke test (Ingress /health)
         run: |
-          set -e
-          kubectl -n $NAMESPACE rollout status deploy/chatbot-backend    --timeout=120s
-          kubectl -n $NAMESPACE rollout status deploy/admin-backend      --timeout=180s
-          kubectl -n $NAMESPACE rollout status deploy/chatbot-frontend   --timeout=60s
-          kubectl -n $NAMESPACE rollout status deploy/admin-frontend     --timeout=60s
+          set -euo pipefail
+          URL="${HEALTH_URL}"
+          ATTEMPTS=20
+          SLEEP=5
+          echo "Probing $URL (max $ATTEMPTS attempts, ${SLEEP}s interval)..."
+          for i in $(seq 1 $ATTEMPTS); do
+            if curl -fsS -m 5 "$URL" | tee /tmp/health.json | grep -qi '"healthy"'; then
+              echo "OK ✅  $(cat /tmp/health.json)"
+              exit 0
+            fi
+            echo "Attempt $i/$ATTEMPTS failed; retrying in ${SLEEP}s..."
+            sleep $SLEEP
+          done
+          echo "❌ External health check failed after ${ATTEMPTS} attempts."
+          test -f /tmp/health.json && cat /tmp/health.json || echo "(no response)"
+          exit 1
 
-      - name: In-cluster smoke test
+      - name: External smoke test (Ingress /api/health)
         run: |
-          set -e
-          kubectl -n $NAMESPACE run smoke --rm -i --image=curlimages/curl:8.10.1 --restart=Never -- \
-            sh -lc 'set -e;
-              echo "chatbot-backend:";  curl -fsS http://chatbot-backend-service:8000/health;
-              echo "admin-backend:";    curl -fsS http://admin-backend-service:8002/health;
-              echo "chatbot-frontend:"; curl -fsSI http://chatbot-frontend-service | head -n1;
-              echo "admin-frontend:";   curl -fsSI http://admin-frontend-service | head -n1;'
+          set -euo pipefail
+          URL="${API_HEALTH_URL}"
+          ATTEMPTS=20
+          SLEEP=5
+          echo "Probing $URL (max $ATTEMPTS attempts, ${SLEEP}s interval)..."
+          for i in $(seq 1 $ATTEMPTS); do
+            if curl -fsS -m 5 "$URL" | tee /tmp/api_health.json | grep -qi '"healthy"'; then
+              echo "OK ✅  $(cat /tmp/api_health.json)"
+              exit 0
+            fi
+            echo "Attempt $i/$ATTEMPTS failed; retrying in ${SLEEP}s..."
+            sleep $SLEEP
+          done
+          echo "❌ External API health check failed after ${ATTEMPTS} attempts."
+          test -f /tmp/api_health.json && cat /tmp/api_health.json || echo "(no response)"
+          exit 1
