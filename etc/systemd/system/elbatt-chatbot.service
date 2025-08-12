@@ -1,0 +1,15 @@
+# /etc/systemd/system/elbatt-chatbot.service
+[Unit]
+Description=Elbatt Chatbot API
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/elbatt-chatbot
+EnvironmentFile=/srv/elbatt-chatbot/.env
+ExecStart=/srv/elbatt-chatbot/venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port ${PORT:-8000}
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
