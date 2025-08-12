@@ -36,3 +36,7 @@ te
 session_summary.json
 *.backup
 glm-context.txt
+
+# Editors
+*.swp
+*.swo

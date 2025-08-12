@@ -1,0 +1,8 @@
+# Playwright-ready for Serverless Jobs
+FROM mcr.microsoft.com/playwright/python:v1.47.0-jammy
+WORKDIR /job
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY job_runner.py .
+# Default kommando: les PLATE fra env og gjør Playwright-scrape -> skriv til stdout/lagre
+CMD ["python","job_runner.py"]
