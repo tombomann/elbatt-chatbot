@@ -1,16 +1,14 @@
-FROM python:3.9-slim
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install dependencies
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application files
-COPY . .
+COPY backend/ .
 
-# Expose port
-EXPOSE 8001
-
-# Run the application
-CMD ["python", "admin_service.py"]
+EXPOSE 8002
+CMD ["uvicorn", "admin_service:app", "--host", "0.0.0.0", "--port", "8002"]
