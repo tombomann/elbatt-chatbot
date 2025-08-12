@@ -1,5 +1,3 @@
-mkdir -p .github/workflows
-cat > .github/workflows/deploy.yml <<'YAML'
 name: Build & Deploy to Scaleway K8s
 
 on:
@@ -9,77 +7,116 @@ on:
 
 env:
   REGISTRY: rg.fr-par.scw.cloud/elbatt
-  CLUSTER_NAMESPACE: elbatt
-  KUBECONFIG_FILE: kubeconfig.yaml
-  HEALTH_URL: https://chatbot.elbatt.no/health
+  NS: elbatt
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    outputs:
+      TAG: ${{ steps.tag.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Compute image tag
+        id: tag
+        run: |
+          TAG="${GITHUB_SHA::8}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Login to Scaleway Registry
         run: |
-          echo "${{ secrets.SCW_REGISTRY_PASSWORD }}" | docker login $REGISTRY -u "${{ secrets.SCW_REGISTRY_USERNAME }}" --password-stdin
+          echo "${{ secrets.SCW_REGISTRY_PASSWORD }}" | \
+            docker login $REGISTRY -u "${{ secrets.SCW_REGISTRY_USERNAME }}" --password-stdin
 
-      - name: Build & Push images
-        env:
-          TAG: ${{ github.sha }}
-        run: |
-          set -e
-          docker build -t $REGISTRY/chatbot-backend:$TAG   -f backend/Dockerfile .
-          docker build -t $REGISTRY/admin-backend:$TAG     -f admin-backend/Dockerfile .
-          docker build -t $REGISTRY/chatbot-frontend:$TAG  -f chatbot-frontend/Dockerfile .
-          docker build -t $REGISTRY/admin-frontend:$TAG    -f admin-frontend/Dockerfile .
-          docker push $REGISTRY/chatbot-backend:$TAG
-          docker push $REGISTRY/admin-backend:$TAG
-          docker push $REGISTRY/chatbot-frontend:$TAG
-          docker push $REGISTRY/admin-frontend:$TAG
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-  deploy:
-    needs: build-and-push
+      - name: Build & push images
+        uses: docker/bake-action@v5
+        with:
+          push: true
+          files: |
+            ./docker-bake.hcl
+          variables: |
+            REGISTRY=${{ env.REGISTRY }}
+            TAG=${{ steps.tag.outputs.tag }}
+
+  update-manifests-and-deploy:
     runs-on: ubuntu-latest
+    needs: build-and-push
+    env:
+      TAG: ${{ needs.build-and-push.outputs.TAG }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install yq (dockerized)
+        run: echo "Using yq via docker image (no local install needed)"
+
+      - name: Update image tags with yq
+        run: |
+          set -euo pipefail
+
+          export REGISTRY="${{ env.REGISTRY }}"
+          export TAG="${TAG}"
+
+          yq() { docker run --rm -v "$PWD":/work -w /work mikefarah/yq:4 "$@"; }
+
+          # admin-backend
+          IMG="$REGISTRY/admin-backend:$TAG" \
+          yq -i '
+            .spec.template.spec.containers
+            |= ( map( if .name == "admin-backend" then .image = env(IMG) else . end ) )
+          ' k8s/deployment-admin-backend.yaml
+
+          # chatbot-backend
+          IMG="$REGISTRY/chatbot-backend:$TAG" \
+          yq -i '
+            .spec.template.spec.containers
+            |= ( map( if .name == "chatbot-backend" then .image = env(IMG) else . end ) )
+          ' k8s/deployment-backend.yaml
+
+          # chatbot-frontend
+          IMG="$REGISTRY/chatbot-frontend:$TAG" \
+          yq -i '
+            .spec.template.spec.containers
+            |= ( map( if .name == "chatbot-frontend" then .image = env(IMG) else . end ) )
+          ' k8s/deployment-chatbot-frontend.yaml
+
+          # admin-frontend
+          IMG="$REGISTRY/admin-frontend:$TAG" \
+          yq -i '
+            .spec.template.spec.containers
+            |= ( map( if .name == "admin-frontend" then .image = env(IMG) else . end ) )
+          ' k8s/deployment-admin-frontend.yaml
+
       - name: Write kubeconfig
         run: |
-          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > $KUBECONFIG_FILE
-          chmod 600 $KUBECONFIG_FILE
-      - name: Set kubectl context
-        run: |
-          export KUBECONFIG=$KUBECONFIG_FILE
-          kubectl cluster-info
-      - name: Update images
-        env:
-          TAG: ${{ github.sha }}
-        run: |
-          set -e
-          export KUBECONFIG=$KUBECONFIG_FILE
-          kubectl -n $CLUSTER_NAMESPACE set image deploy/chatbot-backend   chatbot-backend=$REGISTRY/chatbot-backend:$TAG
-          kubectl -n $CLUSTER_NAMESPACE set image deploy/admin-backend     admin-backend=$REGISTRY/admin-backend:$TAG
-          kubectl -n $CLUSTER_NAMESPACE set image deploy/chatbot-frontend  chatbot-frontend=$REGISTRY/chatbot-frontend:$TAG
-          kubectl -n $CLUSTER_NAMESPACE set image deploy/admin-frontend    admin-frontend=$REGISTRY/admin-frontend:$TAG
-      - name: Wait for rollout
-        run: |
-          set -e
-          export KUBECONFIG=$KUBECONFIG_FILE
-          for d in chatbot-backend admin-backend chatbot-frontend admin-frontend; do
-            kubectl -n $CLUSTER_NAMESPACE rollout status deploy/$d
-          done
-      - name: Health gate (external)
-        run: |
-          set -e
-          for i in {1..10}; do
-            code=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" || true)
-            if [ "$code" = "200" ]; then
-              echo "OK ($code)"; exit 0
-            fi
-            echo "Try $i: got $code, retrying..."; sleep 6
-          done
-          echo "Health check failed"; exit 1
-YAML
+          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > kubeconfig.yaml
+          chmod 600 kubeconfig.yaml
 
-git add .github/workflows/deploy.yml
-git commit -m "ci: add build+deploy workflow with health gate"
-git push
+      - name: Kubectl (apply manifests)
+        env:
+          KUBECONFIG: ${{ github.workspace }}/kubeconfig.yaml
+        run: |
+          set -euo pipefail
+          kubectl -n ${{ env.NS }} apply -f k8s/deployment-backend.yaml
+          kubectl -n ${{ env.NS }} apply -f k8s/deployment-admin-backend.yaml
+          kubectl -n ${{ env.NS }} apply -f k8s/deployment-chatbot-frontend.yaml
+          kubectl -n ${{ env.NS }} apply -f k8s/deployment-admin-frontend.yaml
+
+      - name: Wait for rollouts
+        env:
+          KUBECONFIG: ${{ github.workspace }}/kubeconfig.yaml
+        run: |
+          set -euo pipefail
+          kubectl -n ${{ env.NS }} rollout status deploy/chatbot-backend --timeout=120s
+          kubectl -n ${{ env.NS }} rollout status deploy/admin-backend --timeout=180s
+          kubectl -n ${{ env.NS }} rollout status deploy/chatbot-frontend --timeout=120s
+          kubectl -n ${{ env.NS }} rollout status deploy/admin-frontend --timeout=120s
