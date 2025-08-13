@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-REPO="${1:-elbatt/elbatt-chatbot}"
+REPO="${1:-$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo tombomann/elbatt-chatbot)}"
 SINCE_HUMAN="${SINCE:-7 days ago}"
 
 # Linux vs macOS date:
