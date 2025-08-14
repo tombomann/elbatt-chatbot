@@ -1,3 +1,4 @@
+from fastapi.responses import FileResponse
 import os, re, asyncio
 from typing import Dict, Any
 from fastapi import FastAPI, HTTPException, Request
@@ -60,3 +61,18 @@ async def chat(body: ChatIn, request: Request):
     # Ellers: AI-svar
     answer = await ai_answer(msg)
     return ChatOut(type="ai", data={"answer": answer})
+
+# === EMBED_JS_ROUTE (auto) ===
+@app.get("/embed.js")
+def embed_js():
+    path = os.getenv("EMBED_JS_PATH", "/app/public/embed.js")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="embed.js not found")
+    return FileResponse(path, media_type="application/javascript")
+# === /EMBED_JS_ROUTE ===
+
+# === CHAT_ALIAS (auto) ===
+@app.post("/chat", response_model=ChatOut)
+async def chat_alias(body: ChatIn, request: Request):
+    return await chat(body, request)
+# === /CHAT_ALIAS ===
