@@ -332,3 +332,30 @@ MIT (endre hvis ønskelig).
 ---
 
 ##
+
+## Drift: `embed.js` (chat-widget)
+
+For å garantere at `https://chatbot.elbatt.no/embed.js` svarer 200 (GET + HEAD) kjører vi appen via en liten FastAPI-wrapper (`wrapper.py`) som alltid server `public/embed.js` og delegerer resten til hovedappen.
+
+### Bruk
+```bash
+# Fra Scaleway-server:
+HOST=chatbot.elbatt.no REGION=fr-par ./scripts/fix-embed.sh
+
+# Sjekk status:
+curl -I https://chatbot.elbatt.no/embed.js
+curl -I "https://\$(scw container container get \
+  \$(scw container domain list region=fr-par -o json | jq -r '.[]|select(.hostname=="chatbot.elbatt.no")|.container_id' | head -n1) \
+  region=fr-par -o json | jq -r .domain_name)/embed.js"
+
+# Hent container-info:
+CID="\$(scw container domain list region=fr-par -o json | jq -r '.[]|select(.hostname=="chatbot.elbatt.no")|.container_id' | head -n1)"
+scw container container get "\$CID" region=fr-par -o json | jq '{registry_image,command,args}'
+
+
+
+
+
+
+
+
