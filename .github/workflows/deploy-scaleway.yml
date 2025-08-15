@@ -1,0 +1,58 @@
+name: Build & Deploy to Scaleway
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: {}
+
+env:
+  SCW_REGION: fr-par
+  SCW_NAMESPACE: elbatt
+  IMAGE_NAME: elbatt-chatbot
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to Scaleway Container Registry
+      run: |
+        echo "${{ secrets.SCW_SECRET_KEY }}" | docker login rg.${SCW_REGION}.scw.cloud \
+          -u "${{ secrets.SCW_ACCESS_KEY }}" --password-stdin
+
+    - name: Compute tag
+      id: vars
+      run: |
+        TS=$(date +%Y%m%d%H%M%S)
+        echo "TAG=prod-${TS}" >> $GITHUB_OUTPUT
+
+    - name: Build & Push
+      run: |
+        REG="rg.${SCW_REGION}.scw.cloud/${SCW_NAMESPACE}/${{ env.IMAGE_NAME }}"
+        docker build -t "${REG}:${{ steps.vars.outputs.TAG }}" .
+        docker push "${REG}:${{ steps.vars.outputs.TAG }}"
+        echo "FULL_IMAGE=${REG}:${{ steps.vars.outputs.TAG }}" >> $GITHUB_ENV
+
+    - name: Install Scaleway CLI
+      uses: scaleway/action-scw@v0
+      with:
+        access_key: ${{ secrets.SCW_ACCESS_KEY }}
+        secret_key: ${{ secrets.SCW_SECRET_KEY }}
+        default_project_id: ${{ secrets.SCW_PROJECT_ID }}
+        default_organization_id: ${{ secrets.SCW_ORG_ID }}
+        region: fr-par
+
+    - name: Update container image
+      run: |
+        scw container container update "${{ secrets.SCW_CONTAINER_ID }}" \
+          registry-image="${FULL_IMAGE}" \
+          port=8000 http-option=enabled \
+          health-check.http.path="/api/ping" \
+          min-scale=1 max-scale=5 timeout=300s
+
+    - name: Deploy
+      run: scw container container deploy "${{ secrets.SCW_CONTAINER_ID }}"
