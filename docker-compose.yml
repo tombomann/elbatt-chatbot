@@ -1,49 +1,24 @@
 services:
-  backend:
+  api:
+    image: elbatt-chatbot:local
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: elbatt-api
+    env_file: .env
     ports:
-      - "8000:8000"
-    env_file:
-      - .env
-    environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - VEGVESEN_API_KEY=${VEGVESEN_API_KEY}
-      - LANGFLOW_API_KEY=${LANGFLOW_API_KEY}
-      - VAR1=${VAR1}
-      - VAR2=${VAR2}
-    restart: unless-stopped
-    depends_on:
-      - redis
-    networks:
-      - app-network
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "3001:80"  # Endret fra 3000 til 3001
-    restart: unless-stopped
-    depends_on:
-      - backend
-    networks:
-      - app-network
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
+      - "${PORT:-8000}:8000"
     volumes:
-      - redis_data:/data
+      # Fjern kommentaren under hvis du vil overskrive datafil:
+      # - ./local-data/products.xlsx:/app/data/products.xlsx:ro
+      - type: bind
+        source: ./backend
+        target: /app
+        read_only: false
+    healthcheck:
+      # Bruk Python som alltid finnes i imaget
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     restart: unless-stopped
-    networks:
-      - app-network
-
-networks:
-  app-network:
-    driver: bridge
-
-volumes:
-  redis_data:
