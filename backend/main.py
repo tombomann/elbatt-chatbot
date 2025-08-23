@@ -5,7 +5,11 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from fastapi.responses import FileResponse, Response
+from fastapi.staticfiles import StaticFiles
 
+# --- Init ---
+load_dotenv(override=False)
 APP_VERSION = "elbatt-chatbot/1.1"
 
 def _trim(s: Optional[str]) -> str:
@@ -23,7 +27,6 @@ def ascii_sanitize(s: str) -> str:
     out = s
     for k, v in replacements.items():
         out = out.replace(k, v)
-    # Dropp andre ikke-ASCII med fallback
     try:
         out.encode("ascii")
         return out
@@ -45,12 +48,13 @@ def mask_key_ascii(k: str) -> str:
     L = len(k)
     if L <= 8:
         return k[:2] + "*** len=" + str(L)
-    return k[:5] + "... len=" + str(L)  # ASCII only
-
-load_dotenv(override=False)
+    return k[:5] + "... len=" + str(L)
 
 app = FastAPI(title="Elbatt API")
 
+STATIC_DIR = os.environ.get("ELBATT_STATIC_DIR", "/app/static")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -59,6 +63,10 @@ app.add_middleware(
     allow_credentials=True,
 )
 
+# Static mount (inne i imaget kopieres embed.js til /app/static)
+app.mount("/static", StaticFiles(directory="/app/static"), name="static")
+
+# ---------- Health ----------
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -172,3 +180,150 @@ def google_feed_match(q: str = Query(..., min_length=2)):
             hits.append({"title": title, "link": it.get("link"), "price": it.get("g:price")})
         if len(hits) >= 20: break
     return {"ok": True, "data": {"query": query, "count": len(hits), "items": hits}}
+
+# ---------- EMBED.JS ----------
+# Server både /embed.js og /api/embed.js (noen proxier tillater kun /api/*)
+def _embed_response():
+    resp = FileResponse("/app/static/embed.js", media_type="application/javascript")
+    resp.headers["Cache-Control"] = "public, max-age=3600, immutable"
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
+
+@app.get("/embed.js")
+def embed_root_get():
+    return _embed_response()
+
+@app.head("/embed.js")
+def embed_root_head():
+    return Response(status_code=200, media_type="application/javascript", headers={
+        "Cache-Control": "public, max-age=3600, immutable",
+        "Access-Control-Allow-Origin": "*",
+    })
+
+@app.get("/api/embed.js")
+def embed_api_get():
+    return _embed_response()
+
+@app.head("/api/embed.js")
+def embed_api_head():
+    return Response(status_code=200, media_type="application/javascript", headers={
+        "Cache-Control": "public, max-age=3600, immutable",
+        "Access-Control-Allow-Origin": "*",
+    })
+
+
+# === EMBED STATIC ROUTES (auto) ===
+# Monter /static (tåler å feile hvis allerede montert)
+try:
+    app.mount("/static", StaticFiles(directory="/app/static"), name="static")
+except Exception:
+    pass
+
+def _embed_headers():
+    return {
+        "Cache-Control": "public, max-age=3600, immutable",
+        "Access-Control-Allow-Origin": "*",
+        "Content-Type": "application/javascript",
+    }
+
+@app.get("/api/embed.js")
+def _get_embed_api():
+    return FileResponse("/app/static/embed.js", media_type="application/javascript", headers=_embed_headers())
+
+@app.head("/api/embed.js")
+def _head_embed_api():
+    return Response(status_code=200, headers=_embed_headers())
+
+@app.get("/embed.js")
+def _get_embed_root():
+    return FileResponse("/app/static/embed.js", media_type="application/javascript", headers=_embed_headers())
+
+@app.head("/embed.js")
+def _head_embed_root():
+    return Response(status_code=200, headers=_embed_headers())
+# === END EMBED STATIC ROUTES ===
+
+
+# === EMBED ROUTES START ===
+def _embed_headers():
+    return {"Cache-Control": "public, max-age=3600, immutable",
+            "Access-Control-Allow-Origin": "*"}
+
+@app.get("/api/embed.js")
+def get_embed_api():
+    import os
+    return FileResponse(os.path.join(STATIC_DIR, "embed.js"),
+                        media_type="application/javascript",
+                        headers=_embed_headers())
+
+@app.head("/api/embed.js")
+def head_embed_api():
+    return Response(status_code=200, media_type="application/javascript",
+                    headers=_embed_headers())
+
+@app.get("/embed.js")
+def get_embed():
+    import os
+    return FileResponse(os.path.join(STATIC_DIR, "embed.js"),
+                        media_type="application/javascript",
+                        headers=_embed_headers())
+
+@app.head("/embed.js")
+def head_embed():
+    return Response(status_code=200, media_type="application/javascript",
+                    headers=_embed_headers())
+# === EMBED ROUTES END ===
+
+
+@app.get("/api/embed.js")
+def get_embed_js_api():
+    headers = {"Cache-Control": "public, max-age=3600, immutable"}
+    return FileResponse("/app/static/embed.js", media_type="application/javascript", headers=headers)
+
+
+@app.get("/embed.js")
+def get_embed_js_root():
+    headers = {"Cache-Control": "public, max-age=3600, immutable"}
+    return FileResponse("/app/static/embed.js", media_type="application/javascript", headers=headers)
+
+# ELBATT-EMBED:BEGIN
+from pathlib import Path as _Path
+try:
+    app  # finnes app fra før?
+except NameError:
+    from fastapi import FastAPI as _FastAPI
+    app = _FastAPI()
+
+from fastapi.responses import FileResponse as _FileResponse
+from fastapi.staticfiles import StaticFiles as _StaticFiles
+
+# Health (GET/HEAD → 200/405 av FastAPI; GET er viktigst)
+@app.get("/health")
+def _elbatt_health():
+    return {"status": "ok"}
+
+# Statics
+_app_dir = _Path(__file__).parent
+_static_dir = _app_dir / "static"
+try:
+    app.mount("/static", _StaticFiles(directory=str(_static_dir)), name="static")
+except Exception:
+    pass
+
+# embed.js – server fra /app/static/embed.js med cache headers
+def _elbatt_embed_file_response():
+    p = _static_dir / "embed.js"
+    return _FileResponse(
+        p,
+        media_type="application/javascript",
+        headers={"Cache-Control": "public, max-age=3600, immutable"},
+    )
+
+@app.get("/api/embed.js")
+def _elbatt_embed_api():
+    return _elbatt_embed_file_response()
+
+@app.get("/embed.js")
+def _elbatt_embed_root():
+    return _elbatt_embed_file_response()
+# ELBATT-EMBED:END

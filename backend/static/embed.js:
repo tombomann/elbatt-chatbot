@@ -1,0 +1,47 @@
+// Minimal klient for å laste inn Elbatt-chat på valgfri side
+(function () {
+  // Finn/lag container
+  var el = document.getElementById('elbat-chat');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'elbat-chat';
+    document.body.appendChild(el);
+  }
+
+  // Enkel knapp + input som snakker med /api/chat
+  el.innerHTML = `
+    <div style="position:fixed;right:16px;bottom:16px;max-width:360px;
+                padding:12px;border:1px solid #ddd;border-radius:12px;background:#fff;
+                box-shadow:0 6px 24px rgba(0,0,0,.12);font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+      <div style="font-weight:600;margin-bottom:8px">Elbatt Chat</div>
+      <div style="display:flex;gap:8px">
+        <input id="elbat-chat-input" placeholder="Skriv en melding…" style="flex:1;padding:8px;border:1px solid #ccc;border-radius:8px"/>
+        <button id="elbat-chat-send" style="padding:8px 12px;border:0;border-radius:8px;background:#0ea5e9;color:#fff;cursor:pointer">Send</button>
+      </div>
+      <pre id="elbat-chat-out" style="margin:8px 0 0;white-space:pre-wrap"></pre>
+    </div>
+  `;
+
+  function send(msg) {
+    var out = document.getElementById('elbat-chat-out');
+    out.textContent = '...';
+    fetch((window.ELBATT_CHAT_API || 'https://chatbot.elbatt.no') + '/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ message: msg })
+    })
+    .then(r => r.json())
+    .then(j => {
+      out.textContent = (j && j.data && j.data.answer) ? j.data.answer : JSON.stringify(j, null, 2);
+    })
+    .catch(e => {
+      out.textContent = 'Feil: ' + e;
+    });
+  }
+
+  document.getElementById('elbat-chat-send').onclick = function () {
+    var inp = document.getElementById('elbat-chat-input');
+    if (inp.value.trim()) send(inp.value.trim());
+  };
+})();

@@ -10,5 +10,6 @@ WORKDIR /app
 COPY --from=base /usr/local/lib/python3.12 /usr/local/lib/python3.12
 COPY --from=base /usr/local/bin /usr/local/bin
 COPY backend /app
+COPY backend/static /app/static
 EXPOSE 8000
 CMD ["uvicorn","main:app","--host","0.0.0.0","--port","8000","--proxy-headers","--forwarded-allow-ips","*"]

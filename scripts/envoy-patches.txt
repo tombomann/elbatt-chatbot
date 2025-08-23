@@ -1,0 +1,21 @@
+# Legg inn én av disse i proxy/Envoy (samme upstream/cluster som /api/*):
+
+# A) Direkte path-match:
+- match: { path: "/api/embed.js" }
+  route:
+    cluster: elbatt_api
+    timeout: 15s
+    retry_policy: { retry_on: "5xx", num_retries: 2 }
+    response_headers_to_add:
+      - header: { key: "Cache-Control", value: "public, max-age=3600, immutable" }
+
+# B) Hvis dere allerede rewrit’er /api/* til "/":
+- match: { prefix: "/api/" }
+  route:
+    cluster: elbatt_api
+    prefix_rewrite: "/"
+    timeout: 15s
+
+# Valgfritt speil, uten /api:
+- match: { path: "/embed.js" }
+  route: { cluster: elbatt_api, timeout: 15s }
