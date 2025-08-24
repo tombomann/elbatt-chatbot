@@ -1,0 +1,115 @@
+name: full-pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}/elbatt-chatbot
+  REGION: fr-par
+  CONTAINER_NAMESPACE: elbatt-chatbot-ns
+  CONTAINER_NAME: elbatt-chatbot-api
+
+jobs:
+  ci-cd:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sjekk ut
+        uses: actions/checkout@v4
+
+      - name: Sett opp Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installer avhengigheter (backend)
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install pytest flake8 black isort
+
+      - name: Lint
+        run: |
+          flake8 .
+          black --check .
+          isort --check-only .
+
+      - name: Kjør tester
+        run: pytest -q
+
+      - name: Logg inn i GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Bygg Docker image
+        run: |
+          docker build -t "${IMAGE_NAME}:$GITHUB_SHA" -t "${IMAGE_NAME}:latest" .
+
+      - name: Push image
+        run: |
+          docker push "${IMAGE_NAME}:$GITHUB_SHA"
+          docker push "${IMAGE_NAME}:latest"
+
+      - name: Installer Scaleway CLI
+        run: |
+          curl -fsSL https://github.com/scaleway/scaleway-cli/releases/latest/download/scw-$(uname -s)-$(uname -m) -o /usr/local/bin/scw
+          chmod +x /usr/local/bin/scw
+      - name: Konfigurer Scaleway CLI
+        env:
+          SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
+          SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+          SCW_PROJECT_ID: ${{ secrets.SCW_PROJECT_ID }}
+          SCW_ORGANIZATION_ID: ${{ secrets.SCW_ORGANIZATION_ID }}
+        run: |
+          scw init non-interactive profile=default access-key="$SCW_ACCESS_KEY" secret-key="$SCW_SECRET_KEY" project-id="$SCW_PROJECT_ID" organization-id="$SCW_ORGANIZATION_ID" send-telemetry=false
+
+      - name: Opprett namespace (idempotent)
+        run: |
+          scw container namespace list name="${CONTAINER_NAMESPACE}" -o json | jq -e '.[0].id' >/dev/null || \
+          scw container namespace create name="${CONTAINER_NAMESPACE}" region="${REGION}"
+
+      - name: Opprett/oppdater container
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          VEGVESEN_API_KEY: ${{ secrets.VEGVESEN_API_KEY }}
+          ELBATT_FEED_URL: https://www.elbatt.no/twinxml/google_shopping.php
+        run: |
+          CID=$(scw container container list name="${CONTAINER_NAME}" -o json | jq -r '.[0].id // empty')
+          if [ -z "$CID" ]; then
+            scw container container create \
+              name="${CONTAINER_NAME}" \
+              namespace-id="$(scw container namespace list name=${CONTAINER_NAMESPACE} -o json | jq -r '.[0].id')" \
+              min-scale=0 max-scale=2 cpu-limit=1 memory-limit=1024 \
+              port=8000 protocol=http region="${REGION}" \
+              registry-image="${IMAGE_NAME}:$GITHUB_SHA" \
+              env="ELBATT_FEED_URL=${ELBATT_FEED_URL}" \
+              secret-environment-variables="OPENAI_API_KEY=${OPENAI_API_KEY}" \
+              secret-environment-variables="VEGVESEN_API_KEY=${VEGVESEN_API_KEY}"
+          else
+            scw container container update "$CID" \
+              registry-image="${IMAGE_NAME}:$GITHUB_SHA" \
+              port=8000
+          fi
+
+      - name: Deploy ny revisjon
+        run: |
+          scw container container deploy "$(scw container container list name=${CONTAINER_NAME} -o json | jq -r '.[0].id')" --wait
+
+      - name: Healthcheck etter deploy
+        run: bash scripts/post-deploy-healthcheck.sh
+
+      - name: Rollback ved feil
+        if: failure()
+        run: |
+          echo "Ruller tilbake til forrige image…"
+          PREV=$(scw container container get "$(scw container container list name=${CONTAINER_NAME} -o json | jq -r '.[0].id')" -o json | jq -r '.registry_image')
+          # Bruk "latest" som kjent fungerende fallback
+          scw container container update "$(scw container container list name=${CONTAINER_NAME} -o json | jq -r '.[0].id')" \
+            registry-image="${IMAGE_NAME}:latest"
+          scw container container deploy "$(scw container container list name=${CONTAINER_NAME} -o json | jq -r '.[0].id')" --wait
+          echo "Rollback ferdig."
