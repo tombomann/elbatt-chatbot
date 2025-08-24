@@ -1,0 +1,29 @@
+name: chat-audit
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "25 */6 * * *" # hver 6. time
+  push:
+    branches: [ "main", "chore/scw-serverless-cleanup" ]
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sjekk ut
+        uses: actions/checkout@v4
+
+      - name: Sett opp Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Kjør audit (curl + Playwright)
+        run: |
+          bash scripts/check_elbatt_chat.sh
+        env:
+          TARGET_URL: https://www.elbatt.no/
+          SCALEWAY_HEALTH: https://chatbot.elbatt.no/health
+          SCALEWAY_EMBED_JS: https://chatbot.elbatt.no/embed.js
+          RENDER_HOST: https://elbatt-chatbot.onrender.com
