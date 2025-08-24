@@ -1,0 +1,17 @@
+:80
+respond /health 200 {
+  body "ok"
+}
+
+route {
+  @api path /api/* /health
+  handle @api {
+    reverse_proxy backend:8000
+  }
+
+  handle {
+    file_server browse
+    root * /srv
+    try_files {path} /index.html
+  }
+}
