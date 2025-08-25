@@ -1,19 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-URL="${HEALTH_URL:-https://chatbot.elbatt.no/health}"
-TRIES=10
-SLEEP=3
+HOST="${HOST:-chatbot.elbatt.no}"
+TIMEOUT="${TIMEOUT:-15}"
 
-echo "Sjekker helse på: $URL"
-for i in $(seq 1 $TRIES); do
-  if curl -fsS --max-time 5 "$URL" >/dev/null; then
-    echo "✅ Health OK"
-    exit 0
-  fi
-  echo "Vent og prøv på nytt ($i/$TRIES)…"
-  sleep "$SLEEP"
-done
+echo "▶ Health HTTPS"
+code=$(curl -sS -m "$TIMEOUT" -o /tmp/health.json -w "%{http_code}" "https://${HOST}/api/health" || true)
+test "$code" = "200" || { echo "Healthcheck feilet: HTTP $code"; cat /tmp/health.json || true; exit 1; }
+jq -e '.ok == true' /tmp/health.json >/dev/null || { echo "Health .ok != true"; cat /tmp/health.json; exit 1; }
 
-echo "❌ Healthcheck feilet for $URL"
-exit 1
+echo "▶ battery-by-plate SU18018"
+code=$(curl -sS -m "$TIMEOUT" -o /tmp/plate.json -w "%{http_code}" "https://${HOST}/api/battery-by-plate?regnr=SU18018" || true)
+test "$code" = "200" || { echo "Plate endpoint feilet: HTTP $code"; cat /tmp/plate.json || true; exit 1; }
+jq -e '.ok == true' /tmp/plate.json >/dev/null || { echo "Plate .ok != true"; cat /tmp/plate.json; exit 1; }
+
+echo "✅ OK"
