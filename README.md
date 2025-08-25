@@ -88,3 +88,18 @@ npm run dev   # eller: node server.mjs
 
 # 3) Test
 curl -s http://127.0.0.1:8001/api/health | jq .
+
+### Chat-knapp (embed)
+
+Legg denne i `<head>` på www.elbatt.no:
+
+```html
+<script defer src="https://chatbot.elbatt.no/embed.js"
+        data-elbatt-chat
+        data-origin="https://www.elbatt.no"
+        data-host="https://chatbot.elbatt.no"
+        data-title="Chat med Elbatt"
+        data-theme="auto"
+        data-placement="right"
+        data-color="#0ea5e9"
+        data-open="false"></script>
