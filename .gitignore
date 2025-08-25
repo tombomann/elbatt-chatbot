@@ -40,3 +40,16 @@ glm-context.txt
 # Editors
 *.swp
 *.swo
+
+.s3cfg*
+
+# elbatt server ignores
+.venv*/
+node_modules/
+.vscode/
+feed/
+tests/e2e/report*/
+*.log
+dist/
+build/
+.DS_Store
