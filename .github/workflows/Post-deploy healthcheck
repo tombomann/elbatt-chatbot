@@ -1,0 +1,4 @@
+- name: Post-deploy healthcheck
+  run: ./scripts/post-deploy-healthcheck.sh
+  env:
+    HOST: chatbot.elbatt.no
