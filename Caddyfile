@@ -1,17 +1,22 @@
-:80
-respond /health 200 {
-  body "ok"
-}
+# Caddy ved chatbot.elbatt.no
+chatbot.elbatt.no {
 
-route {
-  @api path /api/* /health
-  handle @api {
-    reverse_proxy backend:8000
+  @health path /health
+  handle @health {
+    respond 200 {
+      body "ok"
+    }
   }
 
-  handle {
-    file_server browse
-    root * /srv
-    try_files {path} /index.html
+  # Statisk (f.eks. embed.js) – valgfritt
+  handle_path /embed.js {
+    file_server
+    root * /srv/public
+    try_files {path}
+  }
+
+  # Alt annet til backend (FastAPI på Scaleway eller lokalt)
+  route {
+    reverse_proxy http://backend:8000
   }
 }
