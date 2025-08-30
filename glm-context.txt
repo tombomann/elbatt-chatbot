@@ -1,0 +1,64 @@
+# GLM-4.5 Context for Elbatt Chatbot
+# Generert: Fri Aug  8 13:56:15 UTC 2025
+# Prosjekt: elbatt-chatbot
+## Prosjektstatus
+### Kubernetes Ressurser
+#### Pods
+NAME                                READY   STATUS    RESTARTS   AGE
+admin-backend-5f7b7bd9d4-fts5k      1/1     Running   0          105m
+admin-frontend-5c4dffb4f7-9ghgx     1/1     Running   0          105m
+chatbot-backend-5c64875698-6w6bs    1/1     Running   0          28m
+chatbot-frontend-57d879ff5f-gvg4g   1/1     Running   0          97m
+redis-7bb7f6fbb9-dt7gz              1/1     Running   0          105m
+#### Services
+NAME                       TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)    AGE
+admin-backend-service      ClusterIP   10.32.12.4     <none>        8002/TCP   105m
+admin-frontend-service     ClusterIP   10.32.10.227   <none>        80/TCP     105m
+chatbot-backend-service    ClusterIP   10.32.5.72     <none>        8000/TCP   105m
+chatbot-frontend-service   ClusterIP   10.32.9.0      <none>        80/TCP     105m
+redis-service              ClusterIP   10.32.5.58     <none>        6379/TCP   105m
+#### Ingress
+NAME             CLASS   HOSTS                               ADDRESS          PORTS     AGE
+elbatt-ingress   nginx   chatbot.elbatt.no,admin.elbatt.no   51.159.115.109   80, 443   105m
+
+## Viktige Filer
+- backend/main.py: Hoved-API med FastAPI
+- backend/admin_service.py: Admin backend med overvåking
+- backend/monitoring_service.py: Overvåkningstjenester
+- docker-compose.yml: Container-oppsett for originalt system
+- docker-compose.admin.yml: Container-oppsett for admin dashboard
+- GLM-4.5-FEATURES.md: Funksjonsoversikt
+
+## Nåværende Systemer
+- Originalt chatbot: http://localhost:8000 (Backend) + http://localhost:3001 (Frontend)
+- Admin dashboard: http://localhost:3002 (Frontend) + http://localhost:8002 (Backend)
+- Redis: Port 6379
+
+## Implementerte Funksjoner
+### Systemovervåking
+- Docker container overvåking
+- Port status monitoring
+- Systemhelse (CPU, minne, disk)
+- Chat-analyse og statistikk
+- Kundeinnsikt og segmentering
+- Automatiske anbefalinger
+
+## Neste Steg
+- Fullfør implementering av overvåkningssystem
+- Test på Scaleway infrastruktur
+- Optimaliser ytelse og sikkerhet
+- Utvid med flere API-integrasjoner
+
+## Viktige Beslutninger
+- Bruker FastAPI for backend
+- Redis for caching og session management
+- Docker for containerisering
+- React for admin frontend
+- GLM-4.5 for AI-funksjonalitet
+- Scaleway Kubernetes for produksjon (kostnadseffektivt)
+
+## Teknisk Stack
+- Backend: Python, FastAPI, Redis
+- Frontend: React, Nginx
+- Infrastruktur: Docker, Scaleway
+- Overvåking: Egenutviklet system med psutil, docker API

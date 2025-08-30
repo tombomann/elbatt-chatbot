@@ -1,55 +1,8 @@
-# Python
-venv/
-.venv/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Node/React
-node_modules/
-frontend/node_modules/
-frontend/build/
-frontend/dist/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-/package-lock.json
-pnpm-lock.yaml
-
-# Env og secrets
+# secrets / lokale artefakter
 .env
-.env.*
-!.env.example
-
-# Docker
-*.log
-*.pid
-*.pid.lock
-
-# CI/CD og test
-coverage/
-*.sqlite3
-te
-.ENV
-.env
-session_summary.json
-*.backup
-glm-context.txt
-
-# Editors
+*.env
+/etc/elbatt-admin.env
+/opt/elbatt-plate/public/status.json
+/opt/elbatt-plate/public/status.log
 *.swp
-*.swo
-
-.s3cfg*
-
-# elbatt server ignores
-.venv*/
-node_modules/
-.vscode/
-feed/
-tests/e2e/report*/
-*.log
-dist/
-build/
 .DS_Store

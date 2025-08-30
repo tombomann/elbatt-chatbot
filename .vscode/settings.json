@@ -1,0 +1,15 @@
+{
+  "files.eol": "\n",
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "python.defaultInterpreterPath": "/usr/bin/python3",
+  "python.testing.pytestEnabled": true,
+  "python.analysis.typeCheckingMode": "basic",
+  "terminal.integrated.defaultProfile.linux": "bash",
+  "remote.SSH.showLoginTerminal": true,
+  "remote.SSH.serverInstallPath": "~/.vscode-server",
+  "remote.SSH.useLocalServer": false,
+  "git.confirmSync": false,
+  "git.autofetch": true,
+  "git.enableSmartCommit": true
+}

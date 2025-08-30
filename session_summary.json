@@ -1,0 +1,43 @@
+{
+  "timestamp": "2025-08-07T15:27:22.963350",
+  "last_commit": "97083996 - GLM-4.5 \u00f8kt: (10 hours ago)",
+  "features": [
+    "Basic chat functionality",
+    "OpenAI API integration",
+    "Vegvesen API integration",
+    "Varta API integration",
+    "Docker containerization",
+    "Health checks",
+    "Redis caching",
+    "Nginx frontend",
+    "Embeddable chat widget"
+  ],
+  "recent_changes": [
+    "97083996 GLM-4.5 \u00f8kt:",
+    "60479be9 Alt i orden",
+    "da85694c GLM-4.5 \u00f8kt: [beskriv hva du gjorde]",
+    "c64dc585 chore: Fjern backup-filer og genererte filer fra repoet",
+    "d4ea41a8 GLM-4.5 \u00f8kt: [beskriv hva du gjorde]",
+    "b38e482c chore: Sikre .ENV-fil og legg til i .gitignore",
+    "c2057f80 chore: Fjern un\u00f8dvendige filer og rydd opp i repoet - Fjern testfiler og midlertidige filer - Fjern backup-filer og lagrede versjoner - Fjern feilaktige filnavn - Rydd opp i utdaterte skript",
+    "f869db5b docs: Komplett README.md for GLM-4.5 integrasjon",
+    "78b701c6 feat: Fullt fungerende chatbot med GLM-4.5 integrasjon",
+    "055d3fbe docs: Start p\u00e5 komplett README.md for GLM-4.5"
+  ],
+  "todo_items": [
+    "session_summary.py:45 - \"\"\"Henter TODO-elementer fra prosjektet\"\"\"",
+    "session_summary.py:48 - # S\u00f8k etter TODO i Python-filer",
+    "session_summary.py:54 - if \"TODO\" in line or \"FIXME\" in line:",
+    "session_summary.py:58 - return todos if todos else [\"Ingen TODO-elementer funnet\"]",
+    "session_summary.py:94 - print(f\"TODO items: {len(summary['todo_items'])}\")"
+  ],
+  "api_endpoints": [
+    "@app.get(\"/api/health\")",
+    "@app.post(\"/api/chat\", response_model=ChatResponse)",
+    "@app.post(\"/api/vehicle/lookup\")",
+    "@app.post(\"/api/products/search\")",
+    "@app.post(\"/api/batteries/search\")",
+    "@app.get(\"/\")",
+    "@app.get(\"/check-env\")"
+  ]
+}
