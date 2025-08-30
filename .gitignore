@@ -1,8 +1,20 @@
-# secrets / lokale artefakter
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
 .env
-*.env
-/etc/elbatt-admin.env
-/opt/elbatt-plate/public/status.json
-/opt/elbatt-plate/public/status.log
-*.swp
+.env.*
+
+# Node
+node_modules/
+npm-debug.log*
+.yarn/*
+.pnp.*
+
+# OS/editor
 .DS_Store
+*.swp
+.idea/
+.vscode/
